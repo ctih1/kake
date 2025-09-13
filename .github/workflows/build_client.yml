@@ -1,4 +1,4 @@
-name: Windows client build
+name: Windows installer build
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 defaults:
   run:
-    working-directory: installer
+    working-directory: client
 
 jobs:
   build-windows:
@@ -29,8 +29,8 @@ jobs:
           path: |
             C:\Users\runneradmin\.cargo\registry
             C:\Users\runneradmin\.cargo\git
-            installer\target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('installer/Cargo.lock') }}
+            client\target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('client/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -40,5 +40,5 @@ jobs:
       - name: Upload Windows binary as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: installer-windows
-          path: installer\target\release\installer.exe
+          name: client-windows
+          path: client\target\release\client.exe
