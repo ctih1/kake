@@ -1,0 +1,79 @@
+name: Create GitHub Release
+
+on:
+  workflow_run:
+    workflows: ["Cross-Platform server build", "Windows client build", "Windows installer build"]
+    types:
+      - completed
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get timestamp for tag
+        id: get_time
+        run: echo "tag_name=$(date +'%Y-%m-%d-%H-%M')" >> "$GITHUB_OUTPUT"
+
+      # Download server artifacts
+      - name: Download Linux x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-linux-x86_64
+          path: artifacts/server-linux
+
+      - name: Download Linux ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-linux-arm64
+          path: artifacts/server-linux-arm64
+
+      - name: Download Windows server artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-windows
+          path: artifacts/server-windows
+
+      - name: Download MacOS server artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-macos
+          path: artifacts/server-macos
+
+      - name: Download Windows client artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: client-windows
+          path: artifacts/client-windows
+
+      - name: Download Windows installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: installer-windows
+          path: artifacts/installer-windows
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.get_time.outputs.tag_name }}
+          git push origin ${{ steps.get_time.outputs.tag_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.get_time.outputs.tag_name }}
+          tag_name: ${{ steps.get_time.outputs.tag_name }}
+          files: |
+            artifacts/server-linux/server
+            artifacts/server-linux-arm64/server
+            artifacts/server-windows/server.exe
+            artifacts/server-macos/server
+            artifacts/client-windows/client.exe
+            artifacts/installer-windows/installer.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
