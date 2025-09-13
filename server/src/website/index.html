@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <script defer>
+        
+        let checked = false;
+        let screenRect = undefined;
+        let lastUpdate = new Date();
+        let mouseWs = new WebSocket(`ws://${window.location.host}/ws/mouse`);
+
+        mouseWs.addEventListener("message", (e) => {
+            console.log(`Recieved: ${e.data}`); 
+            return false;
+        });
+        mouseWs.addEventListener("close", (e) => {
+            console.log("Connection closed", e);
+        })
+        mouseWs.addEventListener("error", (e) => {
+            console.log("Error in ws: ", e);
+        })
+        mouseWs.addEventListener("open", () => {
+            console.log("Connected to mouse ws");
+        });
+
+        window.addEventListener("DOMContentLoaded", function() {
+            document.getElementById("mousefollow").addEventListener("change", () => {checked = !checked})
+            screenRect = document.getElementById("screen").getBoundingClientRect();
+        }, false);
+
+        function getCoords(event) {
+            let relative_x = (event.clientX - screenRect.left) / screenRect.width;
+            let relative_y = (event.clientY - screenRect.top) / screenRect.height;
+
+            let x = Math.round(relative_x*1280); // Target machines scaling is 150% of 1920x1200
+            let y = Math.round(relative_y*800);
+            console.log(x,y);
+            return [x,y];
+        }
+        
+        addEventListener("mousemove", (event) => {
+            if(!checked) {
+                return;
+            }
+            if(((new Date().getTime() - lastUpdate.getTime())/1000) < 0.01) {
+                return
+            }
+            lastUpdate = new Date();
+            if(!screenRect) {
+                console.log("Screenrect not init");
+                return;
+            }
+            if(event.clientY < screenRect.top || event.clientY > screenRect.bottom) {
+                return
+            }
+            if(event.clientX > screenRect.right || event.clientX < screenRect.left) {
+                return
+            }
+
+            let [x,y] = getCoords(event);
+            mouseWs.send(`pos=${x},${y};type=mouse`);
+        });
+
+        addEventListener("mousedown", (event) => {
+            if(!checked) {
+                return;
+            }
+            if(!screenRect) {
+                console.log("Screenrect not init");
+                return;
+            }
+            if(event.clientY < screenRect.top || event.clientY > screenRect.bottom) {
+                return
+            }
+            if(event.clientX > screenRect.right || event.clientX < screenRect.left) {
+                return
+            }
+
+            let [x,y] = getCoords(event);
+
+            mouseWs.send(`pos=${x},${y};type=ldown`);
+        })
+
+        addEventListener("mouseup", (event) => {
+            if(!checked) {
+                return;
+            }
+            if(!screenRect) {
+                console.log("Screenrect not init");
+                return;
+            }
+            if(event.clientY < screenRect.top || event.clientY > screenRect.bottom) {
+                return
+            }
+            if(event.clientX > screenRect.right || event.clientX < screenRect.left) {
+                return
+            }
+            let [x,y] = getCoords(event);
+
+            mouseWs.send(`pos=${x},${y};type=lup`);
+        })
+
+
+        function sendCaps() {
+            fetch(`/send/do/caps/toggle`, {method: "POST"});
+        }
+
+        function altf4() {
+            fetch(`/send/do/close/_`, {method: "POST"});
+        }
+
+        function openPath() {
+            let path = document.getElementById("path").value;
+            fetch(`/send/do/link/${encodeURIComponent(path)}`, {method: "POST"});
+
+        }
+    </script>
+  </head>
+  <body>
+<div class="flex flex-col items-center space-y-8 p-4">
+    <p>Enable mouse follow</p><input type="checkbox" id="mousefollow">
+    <button type="button"
+        onclick="sendCaps()"
+          class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-green-700 hover:bg-green-800 active:bg-green-700"
+    >Toggle caps</button>
+
+    <button type="button"
+            onclick="altf4()"
+          class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-red-700 hover:bg-red-800 active:bg-red-700"
+    >Alt+F4</button>
+
+    <div class="open max-w-[768px] w-full space-y-2">
+        <input id="path" type="text" class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" placeholder="Link or path" />
+          <button type="button"
+                onclick="openPath()"
+                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-blue-700 hover:bg-blue-800 active:bg-blue-700"
+        >Open (link or path)</button>
+    </div>
+
+    <div id="screen" class="screen aspect-[16/10] w-[80vw] bg-gray-200">
+
+    </div>
+   
+  </body>
+</html>
