@@ -23,7 +23,7 @@ jobs:
       - name: Download Linux x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: server-linux-x86_64
+          name: server-linux
           path: artifacts/server-linux
 
       - name: Download Linux ARM64 artifact
