@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1", features = ["full", "macros", "rt-multi-thread"] }
-tokio-tungstenite = "0.15"
 serenity = "0.12.4"
 rouille = "3.6.2"
 futures = "0.3"
