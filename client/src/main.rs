@@ -1,9 +1,15 @@
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
+
 use std::{pin::Pin, process::Command, time::Duration};
 
 use log::{error, info, trace, warn};
 use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, VK_CAPITAL, VK_F4, VK_MENU}, WindowsAndMessaging::SetCursorPos};
 use async_trait::async_trait;
 use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame};
+
 
 
 struct Client {
@@ -234,6 +240,7 @@ impl ezsockets::ClientExt for Client {
     }
 
 }
+
 
 #[tokio::main]
 async fn main() {
