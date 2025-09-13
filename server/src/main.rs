@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
-use actix::fut::stream;
 use actix_web::{post, rt, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::{AggregatedMessage, Session};
 use futures::{lock::Mutex, StreamExt as _};
+use log::{info, warn};
 
 
 struct AppState {
@@ -11,11 +11,11 @@ struct AppState {
 
 async fn index(data: web::Data<AppState>, _req: HttpRequest) -> impl Responder {
     let conns = data.connections.lock().await;
-    println!("Sending data (len: {})", conns.len());
+    info!("Sending data (len: {})", conns.len());
     for mut conn in conns.clone().into_iter() {
-        println!("Sending to connection {}", conn.0);
+        info!("Sending to connection {}", conn.0);
         if let Err(e) = conn.1.text("action=do;param=caps;value=toggle").await {
-            println!("Failed to send");
+            warn!("Failed to send {}", e);
         }
     }
     drop(conns);
@@ -28,9 +28,9 @@ async fn action(data: web::Data<AppState>, _req: HttpRequest, path: web::Path<(S
 
     let conns = data.connections.lock().await;
     for mut conn in conns.clone().into_iter() {
-        println!("Sending {}={} to connection {}", param,value, conn.0);
+        info!("Sending {}={} to connection {}", param,value, conn.0);
         if let Err(e) = conn.1.text(format!("action={};param={};value={}", action, param, value)).await {
-            println!("Failed to send");
+            warn!("Failed to send");
         }
     }
     drop(conns);
@@ -38,7 +38,7 @@ async fn action(data: web::Data<AppState>, _req: HttpRequest, path: web::Path<(S
 }
 
 async fn mouse_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    println!("Recieved mouse event");
+    info!("Recieved mouse event");
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
     
     let mut stream = stream
@@ -58,9 +58,9 @@ async fn mouse_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payl
                     let pos = params.get("pos").unwrap();
                     let event_type = params.get("type").unwrap();
                     for mut conn in conns.clone().into_iter() {
-                        println!("Sending mouse data to connection {}", conn.0);
+                        info!("Sending mouse data to connection {}", conn.0);
                         if let Err(e) = conn.1.text(format!("action=do;param={};value={}",event_type, pos)).await {
-                            println!("Failed to send");
+                            warn!("Failed to send {}", e);
                         }
                     }
 
@@ -95,13 +95,13 @@ async fn websocket_endpoint(data: web::Data<AppState>, req: HttpRequest, stream:
         while let Some(msg) = stream.next().await {
             match msg {
                 Ok(AggregatedMessage::Text(text)) => {
-                    println!("Recieved message {}", text);
+                    info!("Recieved message {}", text);
                     let mut connections = data.connections.lock().await;
                     let params = parse_params(text.to_string());
                     if let Some(name) = params.get("name") {
-                        println!("Registering new user {}", name.clone());
+                        info!("Registering new user {}", name.clone());
                         connections.insert(name.to_string(), session.clone());
-                        println!("New length: {}", connections.len());
+                        info!("New length: {}", connections.len());
                         drop(connections);
                         session.text("success=true").await.unwrap();
                     } else {
@@ -119,7 +119,7 @@ async fn websocket_endpoint(data: web::Data<AppState>, req: HttpRequest, stream:
                 }
 
                 Ok(AggregatedMessage::Close(_)) => {
-                    println!("Client disconnected");
+                    info!("Client disconnected");
                     let mut conns = data.connections.lock().await;
                     conns.clear();
                     drop(conns);
@@ -136,6 +136,9 @@ async fn websocket_endpoint(data: web::Data<AppState>, req: HttpRequest, stream:
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let mut builder = env_logger::Builder::new();
+    builder.filter_level(log::LevelFilter::Debug).init();
+
     let state = web::Data::new(AppState {
                 connections: Mutex::new(HashMap::new())
             });

@@ -5,12 +5,8 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1", features = ["full", "macros", "rt-multi-thread"] }
-serenity = "0.12.4"
-rouille = "3.6.2"
 futures = "0.3"
 log = "0.4"
-uuid = "1.17.0"
 env_logger = "0.11.8"
 actix-web = "4.11.0"
 actix-ws = "0.3.0"
-actix = "0.13.5"
