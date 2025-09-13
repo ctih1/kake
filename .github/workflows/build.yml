@@ -247,16 +247,22 @@ jobs:
           git tag ${{ steps.get_time.outputs.tag_name }}
           git push origin ${{ steps.get_time.outputs.tag_name }}
 
+      - name: Rename artifacts for unique filenames
+        run: |
+          mv artifacts/server-linux-x86_64/server artifacts/server-linux-x86_64/server-linux-x86_64
+          mv artifacts/server-linux-arm64/server artifacts/server-linux-arm64/server-linux-arm64
+          mv artifacts/server-macos/server artifacts/server-macos/server-macos
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ steps.get_time.outputs.tag_name }}
           tag_name: ${{ steps.get_time.outputs.tag_name }}
           files: |
-            artifacts/server-linux-x86_64/server
-            artifacts/server-linux-arm64/server
+            artifacts/server-linux-x86_64/server-linux-x86_64
+            artifacts/server-linux-arm64/server-linux-arm64
             artifacts/server-windows/server.exe
-            artifacts/server-macos/server
+            artifacts/server-macos/server-macos
             artifacts/client-windows/client.exe
             artifacts/installer-windows/installer.exe
         env:
