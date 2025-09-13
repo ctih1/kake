@@ -1,0 +1,81 @@
+name: Cross-Platform installer build
+
+on:
+  push:
+    branches:
+      - master
+
+defaults:
+  run:
+    working-directory: installer
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache Cargo registry and target directory
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:\Users\runneradmin\.cargo\registry
+            C:\Users\runneradmin\.cargo\git
+            installer\target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('installer/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build for Windows
+        run: cargo build --release
+
+      - name: Upload Windows binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows
+          path: installer\target\release\installer.exe
+
+  release:
+    name: 🚀 Publish GitHub Release
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get timestamp for tag
+        id: get_time
+        run: echo "tag_name=$(date +'%Y-%m-%d-%H-%M')" >> "$GITHUB_OUTPUT"
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: installer-windows
+          path: artifacts/windows
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.get_time.outputs.tag_name }}
+          git push origin ${{ steps.get_time.outputs.tag_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.get_time.outputs.tag_name }}
+          tag_name: ${{ steps.get_time.outputs.tag_name }}
+          files: |
+            artifacts/windows/installer.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

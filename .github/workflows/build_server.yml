@@ -1,0 +1,216 @@
+name: Cross-Platform server build
+
+on:
+  push:
+    branches:
+      - master
+
+defaults:
+  run:
+    working-directory: server
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Add musl target
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Cache Cargo registry and target directory
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            server/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('server/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build for Linux (x86_64 static)
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Upload Linux binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-linux-x86_64
+          path: server/target/x86_64-unknown-linux-musl/release/server
+
+  build-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Add ARM64 musl target
+        run: rustup target add aarch64-unknown-linux-musl
+
+      - name: Install cross compiler for ARM64
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Set linker for ARM64
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml <<EOF
+          [target.aarch64-unknown-linux-musl]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
+
+      - name: Build for Linux ARM64 (static)
+        run: cargo build --release --target aarch64-unknown-linux-musl
+
+      - name: Upload Linux ARM64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-linux-arm64
+          path: server/target/aarch64-unknown-linux-musl/release/server
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache Cargo registry and target directory
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:\Users\runneradmin\.cargo\registry
+            C:\Users\runneradmin\.cargo\git
+            server\target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('server/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build for Windows
+        run: cargo build --release
+
+      - name: Upload Windows binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-windows
+          path: server\target\release\server.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache Cargo registry and target directory
+        uses: actions/cache@v3
+        with:
+          path: |
+            /Users/runner/Library/Caches/cargo/registry
+            /Users/runner/Library/Caches/cargo/git
+            server/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('server/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build for MacOS
+        run: cargo build --release
+
+      - name: Upload MacOS binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-macos
+          path: server/target/release/server
+
+  release:
+    name: 🚀 Publish GitHub Release
+    needs: [build-linux, build-linux-arm64, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get timestamp for tag
+        id: get_time
+        run: echo "tag_name=$(date +'%Y-%m-%d-%H-%M')" >> "$GITHUB_OUTPUT"
+
+      - name: Download Linux x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-linux-x86_64
+          path: artifacts/linux-x86_64
+
+      - name: Download Linux ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-linux-arm64
+          path: artifacts/linux-arm64
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-windows
+          path: artifacts/windows
+
+      - name: Download MacOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-macos
+          path: artifacts/macos
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.get_time.outputs.tag_name }}
+          git push origin ${{ steps.get_time.outputs.tag_name }}
+
+      - name: Rename Artifacts
+        run: |
+          mv artifacts/linux-x86_64/server artifacts/linux-x86_64/server-linux-x86_64
+          mv artifacts/linux-arm64/server artifacts/linux-arm64/server-linux-arm64
+          mv artifacts/macos/server artifacts/macos/server-macos
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.get_time.outputs.tag_name }}
+          tag_name: ${{ steps.get_time.outputs.tag_name }}
+          files: |
+            artifacts/linux-x86_64/server-linux-x86_64
+            artifacts/linux-arm64/server-linux-arm64
+            artifacts/windows/server.exe
+            artifacts/macos/server-macos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

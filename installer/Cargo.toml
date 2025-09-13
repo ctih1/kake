@@ -1,0 +1,14 @@
+[package]
+name = "installer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+reqwest = "0.12.23"
+tokio = { version = "1", features = ["full", "macros"] }
+windows = { version = "0.58.0", features = [
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_Foundation"
+] }
+windows-core = "0.62.0"
