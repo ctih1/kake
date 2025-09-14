@@ -25,5 +25,6 @@ async fn main() {
         println!("failed to write payload: {}", e);
     }
 
-    std::process::Command::new(path);
+    println!("Running client");
+    let _ = std::process::Command::new(path).spawn();
 }

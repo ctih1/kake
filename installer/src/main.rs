@@ -44,5 +44,5 @@ async fn main() {
     }
 
     println!("Running updater");
-    std::process::Command::new(path);
+    std::process::Command::new(path).spawn();
 }
