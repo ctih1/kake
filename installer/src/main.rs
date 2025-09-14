@@ -13,7 +13,7 @@ async fn main() {
     let username = std::env::var("USERNAME").unwrap();
 
     println!("Saving payload");
-    let base_path = format!("C:\\Users\\{username}\\AppData\\mun-gradia");
+    let base_path = format!("C:\\Users\\{username}\\AppData\\Local\\mun-gradia");
     if let Err(e) = fs::create_dir_all(&base_path) {
         println!("Failed to create dirs. {e}");
     }
@@ -31,7 +31,7 @@ async fn main() {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let shell_link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).unwrap();
 
-        let _ = shell_link.SetPath(PCWSTR::from_raw((path+"\0").encode_utf16().collect::<Vec<u16>>().as_ptr()));
+        let _ = shell_link.SetPath(PCWSTR::from_raw((path.clone()+"\0").encode_utf16().collect::<Vec<u16>>().as_ptr()));
         let _ = shell_link.SetDescription(PCWSTR::from_raw("Mun Gradia\0".encode_utf16().collect::<Vec<u16>>().as_ptr()));
         let _ = shell_link.SetWorkingDirectory(PCWSTR::from_raw("C:\\Windows\\System32\0".encode_utf16().collect::<Vec<u16>>().as_ptr()));
 
@@ -42,4 +42,7 @@ async fn main() {
         }
         println!("Created shortcut");
     }
+
+    println!("Running updater");
+    std::process::Command::new(path);
 }
