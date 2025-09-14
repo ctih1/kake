@@ -222,7 +222,8 @@ impl ezsockets::ClientExt for Client {
     async fn on_connect(&mut self) -> Result<(), ezsockets::Error> {
         info!("Connected to server");
         info!("Sending registration");
-        let _ = self.handle.text("name=onni");
+        let username = std::env::var("USERNAME").unwrap();
+        let _ = self.handle.text(format!("name={username}"));
         Ok(())
     }
     
