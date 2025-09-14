@@ -49,6 +49,9 @@ jobs:
   build-server-linux-arm64:
     runs-on: ubuntu-latest
     steps:
+      - name: Disable man-db update
+        run: sudo rm -f /var/lib/man-db/auto-update
+        
       - name: Checkout code
         uses: actions/checkout@v4
 
