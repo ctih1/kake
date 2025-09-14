@@ -14,3 +14,6 @@ windows = { version = "0.58.0", features = [
 ] }
 ezsockets = "0.7.0"
 async-trait = "0.1.89"
+
+[package.metadata.winres]
+windows_subsystem = "windows"

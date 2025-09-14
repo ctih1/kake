@@ -219,6 +219,40 @@ jobs:
           name: installer-windows
           path: installer\target\release\installer.exe
 
+  build-updater-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache Cargo registry and target directory
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:\Users\runneradmin\.cargo\registry
+            C:\Users\runneradmin\.cargo\git
+            updater\target
+          key: ${{ runner.os }}-updater-cargo-${{ hashFiles('updater/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-updater-cargo-
+
+      - name: Build for Windows
+        run: cargo build --release
+        working-directory: updater
+
+      - name: Upload Windows binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-windows
+          path: updater\target\release\updater.exe
+
   release:
     needs: [build-server-linux, build-server-linux-arm64, build-server-windows, build-server-macos, build-client-windows, build-installer-windows]
     runs-on: ubuntu-latest
@@ -265,5 +299,6 @@ jobs:
             artifacts/server-macos/server-macos
             artifacts/client-windows/client.exe
             artifacts/installer-windows/installer.exe
+            artifacts/updater-windows/updater.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
