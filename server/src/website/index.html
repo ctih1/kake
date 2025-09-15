@@ -17,7 +17,6 @@
 
         let lastUpdate = new Date();
         let url = window.location.host;
-        url = "192.168.32.144:8040";
         let mouseWs = new WebSocket(`ws://${url}/ws/mouse`);
         let infoWs = new WebSocket(`ws://${url}/ws/info`);
         let lastInfoRequest = new Date();
