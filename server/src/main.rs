@@ -57,7 +57,11 @@ async fn data_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Paylo
                         ping_reqs.insert(conn.0.clone(), std::time::SystemTime::now());
                         if let Err(e) = conn.1.text("ping").await {
                             warn!("Failed to send");
+                            let mut pings = data.pings.lock().await;
+                            pings.remove(&conn.0);
+                            ping_reqs.remove(&conn.0);
                             conns.remove(&conn.0);
+                            drop(pings);
                         }
                     }
 
@@ -183,9 +187,6 @@ async fn websocket_endpoint(data: web::Data<AppState>, req: HttpRequest, stream:
 
                 Ok(AggregatedMessage::Close(_)) => {
                     info!("Client disconnected");
-                    let mut conns = data.connections.lock().await;
-                    conns.clear();
-                    drop(conns);
                 }
 
                 _ => {}
