@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc, time::{Duration, SystemTime}};
-use actix_web::{post, rt, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{post, rt::{self, System}, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::{AggregatedMessage, Session};
 use futures::{lock::Mutex, StreamExt as _};
 use log::{info, warn};
@@ -7,16 +7,26 @@ use log::{info, warn};
 struct AppState {
     connections: Mutex<HashMap<String, Session>>,
     ping_reqs: Mutex<HashMap<String, SystemTime>>,
-    pings: Mutex<HashMap<String, Duration>>
+    pings: Mutex<HashMap<String, Duration>>,
+    last_contacts: Mutex<HashMap<String, SystemTime>>
 }
 
 async fn index(data: web::Data<AppState>, _req: HttpRequest) -> impl Responder {
-    let conns = data.connections.lock().await;
+    let mut conns = data.connections.lock().await;
+    let mut last_contacts = data.last_contacts.lock().await;
     info!("Sending data (len: {})", conns.len());
     for mut conn in conns.clone().into_iter() {
         info!("Sending to connection {}", conn.0);
+        
+        last_contacts.insert(conn.0.clone(), SystemTime::now());
         if let Err(e) = conn.1.text("action=do;param=caps;value=toggle").await {
+            let mut pings = data.pings.lock().await;
+            let mut ping_reqs = data.ping_reqs.lock().await;
+
             warn!("Failed to send {}", e);
+            conns.remove(&conn.0);
+            pings.remove(&conn.0);
+            ping_reqs.remove(&conn.0);
         }
     }
     drop(conns);
@@ -56,7 +66,7 @@ async fn data_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Paylo
                     for mut conn in conns.clone().into_iter() {
                         ping_reqs.insert(conn.0.clone(), std::time::SystemTime::now());
                         if let Err(e) = conn.1.text("ping").await {
-                            warn!("Failed to send");
+                            warn!("Failed to send to {}", &conn.0);
                             let mut pings = data.pings.lock().await;
                             pings.remove(&conn.0);
                             ping_reqs.remove(&conn.0);
@@ -207,6 +217,7 @@ async fn main() -> std::io::Result<()> {
                 connections: Mutex::new(HashMap::new()),
                 pings: Mutex::new(HashMap::new()),
                 ping_reqs: Mutex::new(HashMap::new()),
+                last_contacts: Mutex::new(HashMap::new()),
             });
     HttpServer::new(move || {
         App::new()

