@@ -8,11 +8,59 @@
     <script defer>
         
         let checked = false;
+        let screenDiv = undefined;
         let screenRect = undefined;
-        let lastUpdate = new Date();
-        let mouseWs = new WebSocket(`ws://${window.location.host}/ws/mouse`);
+        let indicator = undefined;
+        let pingSpan = undefined;
+        let connsEl = undefined;
+        let pingsEl = undefined;
 
-        mouseWs.addEventListener("message", (e) => {
+        let lastUpdate = new Date();
+        let url = window.location.host;
+        url = "192.168.32.144:8040";
+        let mouseWs = new WebSocket(`ws://${url}/ws/mouse`);
+        let infoWs = new WebSocket(`ws://${url}/ws/info`);
+        let lastInfoRequest = new Date();
+
+
+        setInterval(() => {
+            if(infoWs.OPEN) {
+                lastInfoRequest = new Date();
+                infoWs.send("data");
+            }
+        }, 1000);
+
+        infoWs.addEventListener("message", async (e) => {
+            if(pingSpan) {
+                pingSpan.innerHTML = new Date().getTime() - lastInfoRequest;
+            }
+            let keys = new Map();
+            text = String(e.data).toString();
+            text.split(";").forEach(element => {
+                let [key,val] = element.split("=");
+                keys.set(key,val);
+            });
+            connsEl.innerHTML = keys.get("conns");
+            keys.delete("conns");
+            pingsEl.innerHTML = "";
+            for(const [user, pingMs] of keys.entries()) {
+                let listItem = document.createElement("li");
+                listItem.innerText=`${user}: ${pingMs}ms`;
+                pingsEl.appendChild(listItem);
+            }
+            return false;
+        });
+        infoWs.addEventListener("close", (e) => {
+            console.log("Connection closed", e);
+        })
+        infoWs.addEventListener("error", (e) => {
+            console.log("Error in ws: ", e);
+        })
+        infoWs.addEventListener("open", () => {
+            console.log("Connected to info ws");
+        });
+
+        mouseWs.addEventListener("message", async (e) => {
             console.log(`Recieved: ${e.data}`); 
             return false;
         });
@@ -28,7 +76,12 @@
 
         window.addEventListener("DOMContentLoaded", function() {
             document.getElementById("mousefollow").addEventListener("change", () => {checked = !checked})
-            screenRect = document.getElementById("screen").getBoundingClientRect();
+            screenDiv = document.getElementById("screen")
+            screenRect = screenDiv.getBoundingClientRect();
+            indicator = document.getElementById("indicator");
+            pingSpan = document.getElementById("ping");
+            pingsEl = document.getElementById("pings");
+            connsEl = document.getElementById("conns");
         }, false);
 
         function getCoords(event) {
@@ -41,9 +94,15 @@
             return [x,y];
         }
         
-        addEventListener("mousemove", (event) => {
+        addEventListener("mousemove", async (event) => {
             if(!checked) {
                 return;
+            }
+            if(event.ctrlKey) {
+                screenDiv.classList.add("disabled")
+                return;
+            } else {
+                screenDiv.classList.remove("disabled")
             }
             if(((new Date().getTime() - lastUpdate.getTime())/1000) < 0.01) {
                 return
@@ -62,6 +121,12 @@
 
             let [x,y] = getCoords(event);
             mouseWs.send(`pos=${x},${y};type=mouse`);
+            if(indicator) {
+                indicator.style["opacity"] = 1;
+                setTimeout(() => {
+                    indicator.style["opacity"] = 0;
+                }, 20);
+            }
         });
 
         addEventListener("mousedown", (event) => {
@@ -108,6 +173,10 @@
             fetch(`/send/do/caps/toggle`, {method: "POST"});
         }
 
+        function lockDevice() {
+            fetch(`/send/do/lock/_`, {method: "POST"});
+        }
+
         function altf4() {
             fetch(`/send/do/close/_`, {method: "POST"});
         }
@@ -118,10 +187,42 @@
 
         }
     </script>
+    <style>
+        .disabled {
+            cursor: not-allowed;
+        }
+
+        .stats {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            outline-style: dashed;
+            outline-width: 2px;
+            border-radius: 0.5em;
+            min-height: 2em;
+        }
+        #indicator {
+            width: 1rem;
+            aspect-ratio: 1;
+            border-radius: 0.5em;
+            opacity: 0;
+            background-color: rgb(38, 255, 0);
+        }
+    </style>
   </head>
   <body>
-<div class="flex flex-col items-center space-y-8 p-4">
-    <p>Enable mouse follow</p><input type="checkbox" id="mousefollow">
+    <div class="stats p-2">
+        <div class="flex">
+            <div id="indicator"></div>
+            <p>Ping: <span id="ping">0</span>ms (server)</p>
+        </div>
+        <p>Connections: <span id="conns">loading</span></p>
+        <p>Pings:</p>
+        <ul id="pings">
+
+        </ul>
+    </div>
+<div class="flex flex-col items-center space-y-4 p-4">
     <button type="button"
         onclick="sendCaps()"
           class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-green-700 hover:bg-green-800 active:bg-green-700"
@@ -132,6 +233,11 @@
           class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-red-700 hover:bg-red-800 active:bg-red-700"
     >Alt+F4</button>
 
+    <button type="button"
+            onclick="lockDevice()"
+          class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-red-700 hover:bg-red-800 active:bg-red-700"
+    >Lock</button>
+
     <div class="open max-w-[768px] w-full space-y-2">
         <input id="path" type="text" class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" placeholder="Link or path" />
           <button type="button"
@@ -140,9 +246,12 @@
         >Open (link or path)</button>
     </div>
 
-    <div id="screen" class="screen aspect-[16/10] w-[80vw] bg-gray-200">
-
+    <div class="flex space-y-2 items-center">
+        <label for="mousefollow" class="m-0 mr-2">Enable mouse follow</label>
+        <input type="checkbox" id="mousefollow">
     </div>
+    <p>CTRL to temporarily stop movement</p>
+    <div id="screen" class="screen aspect-[16/10] w-[80vw] bg-gray-200"></div>
    
   </body>
 </html>

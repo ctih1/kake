@@ -6,11 +6,11 @@
 use std::{pin::Pin, process::Command, time::Duration};
 
 use log::{error, info, trace, warn};
-use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, VK_CAPITAL, VK_F4, VK_MENU}, WindowsAndMessaging::SetCursorPos};
+use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU}, WindowsAndMessaging::SetCursorPos};
 use async_trait::async_trait;
 use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame};
 
-
+mod actions;
 
 struct Client {
     handle: ezsockets::Client<Self>
@@ -24,7 +24,8 @@ impl ezsockets::ClientExt for Client {
         info!("received message: {text}");
 
         if text == "ping" {
-            let _ = self.handle.text("pong");
+            let username = std::env::var("USERNAME").unwrap();
+            let _ = self.handle.text(format!("username={username}"));
         }
         // messages should be in the following format: key=val;key2=val2;
         let parts: Vec<&str> =  text.split(";").collect();  
@@ -60,35 +61,23 @@ impl ezsockets::ClientExt for Client {
             match param.as_str() {
                 "caps" => { 
                     info!("Toggling caps");
-                    unsafe {
-                        let mut input_down = INPUT {
-                            r#type: INPUT_KEYBOARD,
-                            Anonymous: std::mem::zeroed(),
-                        };
-                        input_down.Anonymous.ki = KEYBDINPUT {
-                            wVk: VK_CAPITAL,
-                            wScan: 0,
-                            dwFlags: KEYBD_EVENT_FLAGS(0),
-                            time: 0,
-                            dwExtraInfo: 0,
-                        };
-
-                        let mut input_up = INPUT {
-                            r#type: INPUT_KEYBOARD,
-                            Anonymous: std::mem::zeroed(),
-                        };
-                        input_up.Anonymous.ki = KEYBDINPUT {
-                            wVk: VK_CAPITAL,
-                            wScan: 0,
-                            dwFlags: KEYEVENTF_KEYUP,
-                            time: 0,
-                            dwExtraInfo: 0,
-                        };
-                        let inputs = &[input_down, input_up];
-                        SendInput(inputs, std::mem::size_of::<INPUT>() as i32);
-                        let _ = self.handle.text("ok".to_string());
-                    }
+                    actions::toggle_caps();
+                    let _ = self.handle.text("ok".to_string());
                 },
+                "lock" => {
+                    actions::win_lock();
+                    let _ = self.handle.text("ok");
+                }
+                "close" => {
+                    info!("Closing app");
+                    actions::alt_f4();
+                    let _ = self.handle.text("ok".to_string());
+                }
+                "link" => {
+                    info!("Opening link {}", val);
+                    Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).spawn().unwrap();
+                    let _ = self.handle.text("ok".to_string());
+                }
                 "mouse" => {
                     let parts: Vec<&str> = val.split(",").collect();
                     unsafe {
@@ -136,66 +125,6 @@ impl ezsockets::ClientExt for Client {
                         let inputs = vec![click];
                         SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
                     }
-                }
-                "close" => {
-                    warn!("Closing");
-                    unsafe {
-                        let mut f4_down = INPUT {
-                            r#type: INPUT_KEYBOARD,
-                            Anonymous: std::mem::zeroed(),
-                        };
-                        f4_down.Anonymous.ki = KEYBDINPUT {
-                            wVk: VK_F4,
-                            wScan: 0,
-                            dwFlags: KEYBD_EVENT_FLAGS(0),
-                            time: 0,
-                            dwExtraInfo: 0,
-                        };
-
-                        let mut f4_release = INPUT {
-                            r#type: INPUT_KEYBOARD,
-                            Anonymous: std::mem::zeroed(),
-                        };
-                        f4_release.Anonymous.ki = KEYBDINPUT {
-                            wVk: VK_F4,
-                            wScan: 0,
-                            dwFlags: KEYEVENTF_KEYUP,
-                            time: 0,
-                            dwExtraInfo: 0,
-                        };
-
-                        let mut alt_down = INPUT {
-                            r#type: INPUT_KEYBOARD,
-                            Anonymous: std::mem::zeroed(),
-                        };
-                        alt_down.Anonymous.ki = KEYBDINPUT {
-                            wVk: VK_MENU,
-                            wScan: 0,
-                            dwFlags: KEYBD_EVENT_FLAGS(0),
-                            time: 0,
-                            dwExtraInfo: 0,
-                        };
-
-                        let mut alt_release = INPUT {
-                            r#type: INPUT_KEYBOARD,
-                            Anonymous: std::mem::zeroed(),
-                        };
-                        alt_release.Anonymous.ki = KEYBDINPUT {
-                            wVk: VK_MENU,
-                            wScan: 0,
-                            dwFlags: KEYEVENTF_KEYUP,
-                            time: 0,
-                            dwExtraInfo: 0,
-                        };
-                        let inputs = &[alt_down,f4_down,f4_release, alt_release];
-                        SendInput(inputs, std::mem::size_of::<INPUT>() as i32);
-                        let _ = self.handle.text("ok".to_string());
-                    }
-                }
-                "link" => {
-                    info!("Opening link {}", val);
-                    Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).spawn().unwrap();
-                    let _ = self.handle.text("ok".to_string());
                 }
                 _ => { warn!("Invalid arg {}", param); }
             }
@@ -249,7 +178,7 @@ async fn main() {
     builder.filter_level(log::LevelFilter::Debug).init();
 
     info!("Setting client config");
-    let cfg = ClientConfig::new("ws://koti.mp4.fi:8040/ws");
+    let cfg = ClientConfig::new("ws://192.168.32.144:8040/ws");
     let config = cfg.socket_config(ezsockets::SocketConfig { heartbeat: Duration::from_secs(3), timeout: Duration::from_secs(8), ..Default::default() })
         .reconnect_interval(Duration::from_secs(3))
         .max_reconnect_attempts(9999999);

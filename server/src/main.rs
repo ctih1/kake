@@ -1,12 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::{Duration, SystemTime}};
 use actix_web::{post, rt, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::{AggregatedMessage, Session};
 use futures::{lock::Mutex, StreamExt as _};
 use log::{info, warn};
 
-
 struct AppState {
-    connections: Mutex<HashMap<String, Session>>
+    connections: Mutex<HashMap<String, Session>>,
+    ping_reqs: Mutex<HashMap<String, SystemTime>>,
+    pings: Mutex<HashMap<String, Duration>>
 }
 
 async fn index(data: web::Data<AppState>, _req: HttpRequest) -> impl Responder {
@@ -35,6 +36,56 @@ async fn action(data: web::Data<AppState>, _req: HttpRequest, path: web::Path<(S
     }
     drop(conns);
     return HttpResponse::Ok()
+}
+
+async fn data_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
+    info!("Recieved data event");
+    let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
+    
+    let mut stream = stream
+        .aggregate_continuations()
+        // aggregate continuation frames up to 1MiB
+        .max_continuation_size(2_usize.pow(20));
+
+    rt::spawn(async move {
+        while let Some(msg) = stream.next().await {
+            match msg {
+                Ok(AggregatedMessage::Text(text)) => {
+                    let mut conns = data.connections.lock().await;
+                    let mut ping_reqs = data.ping_reqs.lock().await;
+                    for mut conn in conns.clone().into_iter() {
+                        ping_reqs.insert(conn.0.clone(), std::time::SystemTime::now());
+                        if let Err(e) = conn.1.text("ping").await {
+                            warn!("Failed to send");
+                            conns.remove(&conn.0);
+                        }
+                    }
+
+                    let mut message = String::new();
+                    message += &format!("conns={}", conns.len());
+
+                    drop(conns);
+                    drop(ping_reqs);
+                    let pings = data.pings.lock().await;
+                    for ping in pings.clone().into_iter() {
+                        let millis = ping.1.as_millis();
+                        message += &format!(";{}={}", ping.0, millis);
+                    }
+
+                    let _ = session.text(message).await;
+                }
+                Ok(AggregatedMessage::Binary(_bin)) => {
+                    session.text("Expected text, found bytes").await.unwrap();
+                }
+                Ok(AggregatedMessage::Ping(msg)) => {
+                    session.pong(&msg).await.unwrap();
+                }
+                _ => {}
+            }
+        }
+    });
+
+    Ok(res)
 }
 
 async fn mouse_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
@@ -96,6 +147,21 @@ async fn websocket_endpoint(data: web::Data<AppState>, req: HttpRequest, stream:
             match msg {
                 Ok(AggregatedMessage::Text(text)) => {
                     info!("Recieved message {}", text);
+                    if text.starts_with("username=") {
+                        let username = text.split("username=").last();
+
+                        if let Some(username) = username {
+                            let ping_reqs = data.ping_reqs.lock().await;
+                            let ping_req = ping_reqs.get(username);
+
+                            if let Some(ping_req) = ping_req {
+                                let mut pings = data.pings.lock().await;
+                                
+                                pings.insert(username.to_string(),ping_req.elapsed().unwrap());
+                            }
+                            
+                        }
+                    }
                     let mut connections = data.connections.lock().await;
                     let params = parse_params(text.to_string());
                     if let Some(name) = params.get("name") {
@@ -104,10 +170,7 @@ async fn websocket_endpoint(data: web::Data<AppState>, req: HttpRequest, stream:
                         info!("New length: {}", connections.len());
                         drop(connections);
                         session.text("success=true").await.unwrap();
-                    } else {
-                        session.text("success=false").await.unwrap();
                     }
-
                 }
 
                 Ok(AggregatedMessage::Binary(_bin)) => {
@@ -140,7 +203,9 @@ async fn main() -> std::io::Result<()> {
     builder.filter_level(log::LevelFilter::Debug).init();
 
     let state = web::Data::new(AppState {
-                connections: Mutex::new(HashMap::new())
+                connections: Mutex::new(HashMap::new()),
+                pings: Mutex::new(HashMap::new()),
+                ping_reqs: Mutex::new(HashMap::new()),
             });
     HttpServer::new(move || {
         App::new()
@@ -149,9 +214,7 @@ async fn main() -> std::io::Result<()> {
             .service(action)
             .route("/ws", web::get().to(websocket_endpoint))
             .route("/ws/mouse", web::get().to(mouse_ws))
-
-            
-            
+            .route("/ws/info", web::get().to(data_ws))
     })
     .bind(("0.0.0.0", 8040))?
     .run()
