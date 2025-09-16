@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1", features = ["full", "macros"] }
 reqwest = "0.12.23"
+
+[profile.release]
+lto = true

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script defer async>
+        window.onload = () => {
+            form = document.getElementById("form");
+
+            form.addEventListener("submit", event => {
+                console.log("Submitting form");
+                console.log(event);
+                event.preventDefault();
+                let code = document.getElementById("code").value;
+                document.cookie = `auth=${code};`
+                window.location.href="/";
+            })
+        }
+    </script>
+</head>
+<body>
+    <div class="m-auto mt-4 w-fit">
+        <h1 class="text-4xl w-fit">Login</h1>
+        <form id="form" class="flex flex-col mt-4">
+            <label class="text-xl" for="code">Code</label>
+            <input class="text-xl p-2 rounded-xl outline-blue-600 mb-4" id="code" placeholder="XXXXXX">
+            <button class="bg-blue-500 p-4 rounded-xl text-white" type="submit">Login</button>
+        </form>
+    </div>
+</body>
+</html>

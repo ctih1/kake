@@ -29,19 +29,29 @@
             }
         }, 1000);
 
-        infoWs.addEventListener("message", async (e) => {
-            if(pingSpan) {
-                pingSpan.innerHTML = new Date().getTime() - lastInfoRequest;
-            }
+        function getKeys(text) {
             let keys = new Map();
-            text = String(e.data).toString();
             text.split(";").forEach(element => {
                 let [key,val] = element.split("=");
                 keys.set(key,val);
             });
-            connsEl.innerHTML = keys.get("conns");
-            keys.delete("conns");
+            return keys;
+        }
+
+        infoWs.addEventListener("message", async (e) => {
+            if(pingSpan) {
+                pingSpan.innerHTML = new Date().getTime() - lastInfoRequest;
+            }
+            let keys = getKeys(e.data.toString());
+            if(keys.get("auth_required")) {
+                window.location.href="/login";
+            }
+
+            connsEl.innerHTML = keys.get("conns");            
             pingsEl.innerHTML = "";
+
+            keys.delete("conns");
+
             for(const [user, pingMs] of keys.entries()) {
                 let listItem = document.createElement("li");
                 listItem.innerText=`${user}: ${pingMs}ms`;
@@ -60,7 +70,10 @@
         });
 
         mouseWs.addEventListener("message", async (e) => {
-            console.log(`Recieved: ${e.data}`); 
+            let keys = getKeys(e.data.toString());
+            if(keys.get("auth_required")) {
+                window.location.href="/login";
+            }
             return false;
         });
         mouseWs.addEventListener("close", (e) => {
@@ -185,6 +198,27 @@
             fetch(`/send/do/link/${encodeURIComponent(path)}`, {method: "POST"});
 
         }
+
+        function createSession() {
+            fetch("/api/session", {
+                method: "POST"
+            }).then(data => data.text()).then(session => {
+                alert(session)
+            })
+        }
+
+        function logout() {
+            document.cookie="auth=";
+            window.location.reload();
+        }
+        function logoutAll() {
+            fetch("/api/session", {
+                method: "DELETE"
+            }).then(_ => {
+                logout();
+            })
+            
+        }
     </script>
     <style>
         .disabled {
@@ -193,8 +227,6 @@
 
         .stats {
             position: fixed;
-            top: 15px;
-            left: 15px;
             outline-style: dashed;
             outline-width: 2px;
             border-radius: 0.5em;
@@ -210,7 +242,7 @@
     </style>
   </head>
   <body>
-    <div class="stats p-2">
+    <div class="stats p-2 left-[15px] top-[15px]">
         <div class="flex">
             <div id="indicator"></div>
             <p>Ping: <span id="ping">0</span>ms (server)</p>
@@ -220,6 +252,12 @@
         <ul id="pings">
 
         </ul>
+    </div>
+
+    <div class="stats flex flex-col p-2 right-[15px] top-[15px]">
+        <button onclick="createSession()">New session</button>
+        <button onclick="logout()">Logout</button>
+        <button onclick="logoutAll()">Logout all</button>
     </div>
 <div class="flex flex-col items-center space-y-4 p-4">
     <button type="button"

@@ -1,4 +1,8 @@
+use std::ffi::c_str;
+
+use windows::core::PCSTR;
 use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU};
+use windows::Win32::UI::WindowsAndMessaging::{MessageBoxA, MB_ICONWARNING, MESSAGEBOX_STYLE};
 
 fn create_keypress_pair(key: VIRTUAL_KEY) -> (INPUT, INPUT) {
     unsafe {
@@ -37,6 +41,16 @@ pub fn win_lock() {
 
         let inputs = &[win_down, l_down,l_up, win_up];
         SendInput(inputs, std::mem::size_of::<INPUT>() as i32);
+    }
+}
+
+pub fn dialog(title: String, description: String, style: MESSAGEBOX_STYLE) {
+    unsafe {
+        MessageBoxA(None,
+            PCSTR(std::ffi::CString::new(title).unwrap().as_ptr() as _),
+            PCSTR(std::ffi::CString::new(description).unwrap().as_ptr() as _),
+            style
+        );
     }
 }
 

@@ -63,6 +63,7 @@ impl ezsockets::ClientExt for Client {
                 "caps" => { 
                     info!("Toggling caps");
                     actions::toggle_caps();
+                    actions::dialog("HEllo".to_string(), "hai".to_string());
                     let _ = self.handle.text("ok".to_string());
                 },
                 "lock" => {
@@ -189,7 +190,7 @@ async fn main() {
     builder.filter_level(log::LevelFilter::Debug).init();
 
     info!("Setting client config");
-    let cfg = ClientConfig::new("ws://koti.mp4.fi:8040/ws");
+    let cfg = ClientConfig::new("ws://192.168.32.144:8040/ws");
     let config = cfg.socket_config(ezsockets::SocketConfig { heartbeat: Duration::from_secs(3), timeout: Duration::from_secs(8), ..Default::default() })
         .reconnect_interval(Duration::from_secs(3))
         .max_reconnect_attempts(9999999);

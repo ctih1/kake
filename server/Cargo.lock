@@ -1265,6 +1265,7 @@ dependencies = [
  "env_logger",
  "futures",
  "log",
+ "rand",
  "tokio",
 ]
 

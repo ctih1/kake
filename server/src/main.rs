@@ -1,14 +1,17 @@
-use std::{collections::HashMap, sync::Arc, time::{Duration, SystemTime}};
-use actix_web::{post, rt::{self, System}, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
+use std::{collections::{HashMap, HashSet}, hash::Hash, sync::Arc, time::{Duration, SystemTime}};
+use actix_web::{delete, get, http::uri::Authority, post, rt::{self, System}, web::{self, to, Redirect}, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::{AggregatedMessage, Session};
 use futures::{lock::Mutex, StreamExt as _};
 use log::{info, warn};
+use rand::{distr::Alphanumeric, Rng};
 
 struct AppState {
     connections: Mutex<HashMap<String, Session>>,
     ping_reqs: Mutex<HashMap<String, SystemTime>>,
     pings: Mutex<HashMap<String, Duration>>,
-    last_contacts: Mutex<HashMap<String, SystemTime>>
+    last_contacts: Mutex<HashMap<String, SystemTime>>,
+    // The session id and whether they are an admin (first session is considered admin)
+    authorizations: Mutex<HashMap<String, bool>>
 }
 
 async fn index(data: web::Data<AppState>, _req: HttpRequest) -> impl Responder {
@@ -33,29 +36,93 @@ async fn index(data: web::Data<AppState>, _req: HttpRequest) -> impl Responder {
     return HttpResponse::Ok().body(include_str!("website/index.html"))
 }
 
+async fn login(_data: web::Data<AppState>, _req: HttpRequest) -> impl Responder {
+    return HttpResponse::Ok().body(include_str!("website/login.html"));
+}
+
+async fn create_session(data: web::Data<AppState>, req: HttpRequest) -> impl Responder {
+    let mut authorized = data.authorizations.lock().await;
+    if let Some(cookie) = req.cookie("auth") && *authorized.get(cookie.to_string().split("=").last().unwrap()).unwrap_or(&false) {
+        info!("Recieved session creation");
+    } else {
+        warn!("Auth required");
+        return HttpResponse::Forbidden().into();
+    }
+
+    let code = rand::rng()
+        .sample_iter(&Alphanumeric)
+        .take(14)
+        .map(char::from)
+        .collect::<String>();
+
+    authorized.insert(code.clone(), false);
+    return HttpResponse::Ok().body(code);
+}
+
+#[delete("/api/session")] 
+async fn remove_session(data: web::Data<AppState>, req: HttpRequest) -> impl Responder {
+    let mut authorized = data.authorizations.lock().await;
+    if let Some(cookie) = req.cookie("auth") && *authorized.get(cookie.to_string().split("=").last().unwrap()).unwrap_or(&false) {
+        info!("Recieved session deletion");
+    } else {
+        warn!("Auth required");
+        return HttpResponse::Forbidden().into();
+    }
+
+    let readable_auths = authorized.clone();
+    for key in readable_auths.keys().clone().into_iter() {
+        if !readable_auths.get(&key.clone()).unwrap_or(&false) {
+            authorized.remove(&key.to_string());
+        }
+    }
+    return HttpResponse::Ok();
+}
+
+
 #[post("/send/{action}/{param}/{value}")] 
-async fn action(data: web::Data<AppState>, _req: HttpRequest, path: web::Path<(String, String, String)>) -> impl Responder {
+async fn action(data: web::Data<AppState>, req: HttpRequest, path: web::Path<(String, String, String)>) -> impl Responder {
     let (action, param, value) = path.into_inner();
+    
+    let mut authorized = data.authorizations.lock().await;
+    if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
+        info!("Recieved send POST");
+    } else {
+        warn!("Auth required");
+        return HttpResponse::Forbidden().into();
+    }
+
+    drop(authorized);
+
 
     let conns = data.connections.lock().await;
     for mut conn in conns.clone().into_iter() {
-        info!("Sending {}={} to connection {}", param,value, conn.0);
+        info!("({}): Sending {}={} to connection {}", req.connection_info().peer_addr().unwrap_or("None"), param,value, conn.0);
         if let Err(e) = conn.1.text(format!("action={};param={};value={}", action, param, value)).await {
             warn!("Failed to send");
         }
     }
     drop(conns);
-    return HttpResponse::Ok()
+    return HttpResponse::Ok();
 }
 
 async fn data_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    info!("Recieved data event");
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
-    
+
     let mut stream = stream
         .aggregate_continuations()
         // aggregate continuation frames up to 1MiB
         .max_continuation_size(2_usize.pow(20));
+
+    
+    let authorized = data.authorizations.lock().await;
+    if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
+        info!("Recieved mouseWs event");
+    } else {
+        warn!("Auth required");
+        let _ = session.text("auth_required=true").await;
+        return Ok(res);
+    }
+    drop(authorized);
 
     rt::spawn(async move {
         while let Some(msg) = stream.next().await {
@@ -103,7 +170,6 @@ async fn data_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Paylo
 }
 
 async fn mouse_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    info!("Recieved mouse event");
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
     
     let mut stream = stream
@@ -111,7 +177,17 @@ async fn mouse_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payl
         // aggregate continuation frames up to 1MiB
         .max_continuation_size(2_usize.pow(20));
 
-    
+
+    let authorized = data.authorizations.lock().await;
+    if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
+        info!("Recieved mouseWs event");
+    } else {
+        warn!("Auth required");
+        let _ = session.text("auth_required=true").await;
+        return Ok(res);
+    }
+
+    drop(authorized);
 
     rt::spawn(async move {
         while let Some(msg) = stream.next().await {
@@ -212,18 +288,31 @@ async fn websocket_endpoint(data: web::Data<AppState>, req: HttpRequest, stream:
 async fn main() -> std::io::Result<()> {
     let mut builder = env_logger::Builder::new();
     builder.filter_level(log::LevelFilter::Debug).init();
+    let mut auths = Mutex::new(HashMap::new());
+    let code = rand::rng()
+        .sample_iter(&Alphanumeric)
+        .take(14)
+        .map(char::from)
+        .collect::<String>();
+    let mut auths_lock = auths.lock().await;
+    auths_lock.insert("moi".to_string(), true);
+    drop(auths_lock);
 
     let state = web::Data::new(AppState {
                 connections: Mutex::new(HashMap::new()),
                 pings: Mutex::new(HashMap::new()),
                 ping_reqs: Mutex::new(HashMap::new()),
                 last_contacts: Mutex::new(HashMap::new()),
+                authorizations: auths
             });
     HttpServer::new(move || {
         App::new()
             .app_data(state.clone())
             .route("/", web::get().to(index))
+            .route("/api/session", web::post().to(create_session))
+            .route("/login", web::get().to(login))
             .service(action)
+            .service(remove_session)
             .route("/ws", web::get().to(websocket_endpoint))
             .route("/ws/mouse", web::get().to(mouse_ws))
             .route("/ws/info", web::get().to(data_ws))
