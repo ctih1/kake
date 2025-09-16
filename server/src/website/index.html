@@ -14,6 +14,7 @@
         let pingSpan = undefined;
         let connsEl = undefined;
         let pingsEl = undefined;
+        let screenIndicator = undefined;
 
         let lastUpdate = new Date();
         let url = window.location.host;
@@ -94,49 +95,73 @@
             pingSpan = document.getElementById("ping");
             pingsEl = document.getElementById("pings");
             connsEl = document.getElementById("conns");
+            screenDiv.offsetTop;
+            screenIndicator = document.getElementById("screen-indicator");
+    
             document.getElementById("vol").addEventListener("input", e => {
                 document.getElementById("vol-percentage").innerText=e.srcElement.value;
             })
         }, false);
 
         function getCoords(event) {
-            let relative_x = (event.clientX - screenRect.left) / screenRect.width;
-            let relative_y = (event.clientY - screenRect.top) / screenRect.height;
+            let top =  window.pageYOffset + screenRect.top;
+            let left = window.pageXOffset + screenRect.left;
+
+            let clientX = window.pageXOffset + event.clientX;
+            let clientY = window.pageYOffset + event.clientY;
+            console.log(screenDiv.offsetTop);
+            let relative_x = (clientX - left) / screenRect.width;
+            let relative_y = (clientY - top) / screenRect.height;
 
             let x = Math.round(relative_x*1280); // Target machines scaling is 150% of 1920x1200
             let y = Math.round(relative_y*800);
             console.log(x,y);
             return [x,y];
         }
+
+        addEventListener("scroll", async (event) => {
+
+            screenRect = screenDiv.getBoundingClientRect();
+        })
         
         addEventListener("mousemove", async (event) => {
+            let top =  window.pageYOffset + screenRect.top;
+            let left = window.pageXOffset + screenRect.left;
+            let right = window.pageXOffset + screenRect.right;
+            let bottom = window.pageYOffset + screenRect.bottom;
+
+            let clientX = window.pageXOffset + event.clientX;
+            let clientY = window.pageYOffset + event.clientY;
             if(!checked) {
+                console.log("Not checked");
                 return;
             }
             if(event.ctrlKey) {
                 screenDiv.classList.add("disabled")
+                console.log("CTRL held");
                 return;
             } else {
                 screenDiv.classList.remove("disabled")
             }
-            if(((new Date().getTime() - lastUpdate.getTime())/1000) < 0.01) {
+            if(((new Date().getTime() - lastUpdate.getTime())/1000) < 0.05) {
                 return
             }
             lastUpdate = new Date();
             if(!screenRect) {
-                console.log("Screenrect not init");
                 return;
             }
-            if(event.clientY < screenRect.top || event.clientY > screenRect.bottom) {
+            if(clientY < top || clientY > bottom) {
                 return
             }
-            if(event.clientX > screenRect.right || event.clientX < screenRect.left) {
+            if(clientX > right || clientX < left) {
                 return
             }
 
             let [x,y] = getCoords(event);
             mouseWs.send(`pos=${x},${y};type=mouse`);
             if(indicator) {
+                screenIndicator.style["top"] = (event.pageY-6)+"px";
+                screenIndicator.style["left"] = (event.pageX-6)+"px";
                 indicator.style["opacity"] = 1;
                 setTimeout(() => {
                     indicator.style["opacity"] = 0;
@@ -145,6 +170,13 @@
         });
 
         addEventListener("mousedown", (event) => {
+            let top =  window.pageYOffset + screenRect.top;
+            let left = window.pageXOffset + screenRect.left;
+            let right = window.pageXOffset + screenRect.right;
+            let bottom = window.pageYOffset + screenRect.bottom;
+
+            let clientX = window.pageXOffset + event.clientX;
+            let clientY = window.pageYOffset + event.clientY;
             if(!checked) {
                 return;
             }
@@ -152,15 +184,16 @@
                 console.log("Screenrect not init");
                 return;
             }
-            if(event.clientY < screenRect.top || event.clientY > screenRect.bottom) {
+            if(clientY < top || clientY > bottom) {
                 return
             }
-            if(event.clientX > screenRect.right || event.clientX < screenRect.left) {
+            if(clientX > right || clientX < left) {
                 return
             }
 
             let [x,y] = getCoords(event);
-
+            
+            screenIndicator.style["background-color"] = "blue";
             mouseWs.send(`pos=${x},${y};type=ldown`);
         })
 
@@ -179,7 +212,7 @@
                 return
             }
             let [x,y] = getCoords(event);
-
+            screenIndicator.style["background-color"] = "black";
             mouseWs.send(`pos=${x},${y};type=lup`);
         })
 
@@ -313,7 +346,8 @@
         <label for="mousefollow" class="m-0 mr-2">Enable mouse follow</label>
         <input type="checkbox" id="mousefollow">
     </div>
-    <p>CTRL to temporarily stop movement</p>
+    <div id="screen-indicator" class="absolute rounded-xl bg-black w-[1em] aspect-square"></div>
+    <p class="select-none pointer-events-none">CTRL to temporarily stop movement</p>
     <div id="screen" class="screen aspect-[16/10] w-[80vw] bg-gray-200"></div>
    
   </body>
