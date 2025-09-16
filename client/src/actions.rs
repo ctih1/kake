@@ -1,9 +1,13 @@
 use std::ffi::c_str;
 
-use windows::core::PCSTR;
+use log::{error, info};
+use windows::core::{Interface, PCSTR};
+use windows::Win32::Media::Audio::Endpoints::{IAudioEndpointVolume, IAudioEndpointVolumeCallback};
+use windows::Win32::Media::Audio::{eConsole, eRender, IMMDevice, IMMDeviceActivator, IMMDeviceEnumerator, MMDeviceEnumerator};
+use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED};
 use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU};
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxA, MB_ICONWARNING, MESSAGEBOX_STYLE};
-
+use windows::Win32::System::Shutdown::LockWorkStation;
 fn create_keypress_pair(key: VIRTUAL_KEY) -> (INPUT, INPUT) {
     unsafe {
         let mut down = INPUT {
@@ -34,23 +38,31 @@ fn create_keypress_pair(key: VIRTUAL_KEY) -> (INPUT, INPUT) {
 
 }
 
-pub fn win_lock() {
+pub fn lock() {
     unsafe {
-        let (l_down, l_up) = create_keypress_pair(VK_L);
-        let (win_down, win_up) = create_keypress_pair(VK_LWIN);
-
-        let inputs = &[win_down, l_down,l_up, win_up];
-        SendInput(inputs, std::mem::size_of::<INPUT>() as i32);
+        LockWorkStation();
     }
 }
 
 pub fn dialog(title: String, description: String, style: MESSAGEBOX_STYLE) {
+    info!("Opening message box {title} {description}");
     unsafe {
         MessageBoxA(None,
-            PCSTR(std::ffi::CString::new(title).unwrap().as_ptr() as _),
             PCSTR(std::ffi::CString::new(description).unwrap().as_ptr() as _),
+            PCSTR(std::ffi::CString::new(title).unwrap().as_ptr() as _),
             style
         );
+    }
+}
+
+pub fn set_volume(volume_percentage: u8) {
+    unsafe {
+        CoInitializeEx(None, COINIT_MULTITHREADED);
+        let enumerator: IMMDeviceEnumerator  = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).unwrap();
+        let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole).unwrap();
+        let endpoint_volume: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).unwrap();
+
+        let _ = endpoint_volume.SetMasterVolumeLevelScalar(volume_percentage as f32/100.0, std::ptr::null());
     }
 }
 

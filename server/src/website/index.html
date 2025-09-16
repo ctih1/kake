@@ -94,6 +94,9 @@
             pingSpan = document.getElementById("ping");
             pingsEl = document.getElementById("pings");
             connsEl = document.getElementById("conns");
+            document.getElementById("vol").addEventListener("input", e => {
+                document.getElementById("vol-percentage").innerText=e.srcElement.value;
+            })
         }, false);
 
         function getCoords(event) {
@@ -196,7 +199,13 @@
         function openPath() {
             let path = document.getElementById("path").value;
             fetch(`/send/do/link/${encodeURIComponent(path)}`, {method: "POST"});
+        }
 
+        function sendDialog() {
+            let title = document.getElementById("dialog-title").value;
+            let desc = document.getElementById("dialog-description").value;
+
+            fetch(`/send/do/dialog/${encodeURIComponent(title)}.,.${encodeURIComponent(desc)}`, {method: "POST"});
         }
 
         function createSession() {
@@ -214,10 +223,12 @@
         function logoutAll() {
             fetch("/api/session", {
                 method: "DELETE"
-            }).then(_ => {
-                logout();
-            })
-            
+            });            
+        }
+
+        function setVolume() {
+            let volume = document.getElementById("vol").value;
+            fetch(`/send/do/volume/${volume}`, {method: "POST"});
         }
     </script>
     <style>
@@ -281,6 +292,21 @@
                 onclick="openPath()"
                 class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-blue-700 hover:bg-blue-800 active:bg-blue-700"
         >Open (link or path)</button>
+    </div>
+
+    <div class="volume flex flex-col">
+        <label for="vol">Volume (<span id="vol-percentage">unset</span>%)</label>
+        <input class="w-[50vw]" step="1{}" id="vol" type="range" min="0" max="100">
+        <button onclick="setVolume()" class="w-[120px] px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-green-700 hover:bg-green-800 active:bg-green-700">Apply</button>
+    </div> 
+
+    <div class="open max-w-[768px] w-full space-y-2">
+        <input id="dialog-title" type="text" class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" placeholder="Dialog title" />
+        <input id="dialog-description" type="text" class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" placeholder="Dialog description" />
+        <button type="button"
+                onclick="sendDialog()"
+                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-blue-700 hover:bg-blue-800 active:bg-blue-700"
+        >Open dialog</button>
     </div>
 
     <div class="flex space-y-2 items-center">

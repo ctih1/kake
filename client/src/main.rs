@@ -3,7 +3,7 @@
     windows_subsystem = "windows"
 )]
 
-use std::{os::windows::thread, pin::Pin, process::Command, time::Duration};
+use std::{os::windows::{process::CommandExt, thread}, pin::Pin, process::Command, time::Duration};
 
 use log::{error, info, trace, warn};
 use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_MOUSE,  MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT}, WindowsAndMessaging::{SetCursorPos, MB_ICONEXCLAMATION}};
@@ -69,7 +69,7 @@ impl ezsockets::ClientExt for Client {
                 },
                 "lock" => {
                     std::thread::spawn(|| {
-                        actions::win_lock();
+                        actions::lock();
                     });
                     let _ = self.handle.text("ok");
                 }
@@ -83,12 +83,21 @@ impl ezsockets::ClientExt for Client {
                 "link" => {
                     info!("Opening link {}", val);
                     std::thread::spawn(move || {
-                        Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).spawn().unwrap();
+                        // 0x08000000 is to not create a visible window
+                        Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).creation_flags(0x08000000).spawn().unwrap();
                     });
                     let _ = self.handle.text("ok".to_string());
                 },
+                "volume" => {
+                    let percentage: u8 = val.parse().unwrap();
+
+                    actions::set_volume(percentage);
+
+                    let _ = self.handle.text("ok".to_string());
+                }
                 "dialog" => {
-                    let vals: Vec<String> = val.split(";;").map(|s|s.to_string()).collect();
+                    let vals: Vec<String> = val.split(".,.").map(|s|s.to_string()).collect();
+                    info!("Lens: {}", vals.len());
                     std::thread::spawn(move || {
                         actions::dialog(vals[0].to_string(), vals.last().unwrap().to_string(), MB_ICONEXCLAMATION);
                     });
