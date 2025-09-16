@@ -3,10 +3,10 @@
     windows_subsystem = "windows"
 )]
 
-use std::{pin::Pin, process::Command, time::Duration};
+use std::{os::windows::thread, pin::Pin, process::Command, time::Duration};
 
 use log::{error, info, trace, warn};
-use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_MOUSE,  MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT}, WindowsAndMessaging::SetCursorPos};
+use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_MOUSE,  MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT}, WindowsAndMessaging::{SetCursorPos, MB_ICONEXCLAMATION}};
 use async_trait::async_trait;
 use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame, WSError};
 
@@ -62,31 +62,46 @@ impl ezsockets::ClientExt for Client {
             match param.as_str() {
                 "caps" => { 
                     info!("Toggling caps");
-                    actions::toggle_caps();
-                    actions::dialog("HEllo".to_string(), "hai".to_string());
+                    std::thread::spawn(|| {
+                        actions::toggle_caps();
+                    });
                     let _ = self.handle.text("ok".to_string());
                 },
                 "lock" => {
-                    actions::win_lock();
+                    std::thread::spawn(|| {
+                        actions::win_lock();
+                    });
                     let _ = self.handle.text("ok");
                 }
                 "close" => {
                     info!("Closing app");
-                
-                    actions::alt_f4();
+                    std::thread::spawn(|| {
+                        actions::alt_f4();
+                    });
                     let _ = self.handle.text("ok".to_string());
                 }
                 "link" => {
                     info!("Opening link {}", val);
-                    Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).spawn().unwrap();
+                    std::thread::spawn(move || {
+                        Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).spawn().unwrap();
+                    });
+                    let _ = self.handle.text("ok".to_string());
+                },
+                "dialog" => {
+                    let vals: Vec<String> = val.split(";;").map(|s|s.to_string()).collect();
+                    std::thread::spawn(move || {
+                        actions::dialog(vals[0].to_string(), vals.last().unwrap().to_string(), MB_ICONEXCLAMATION);
+                    });
                     let _ = self.handle.text("ok".to_string());
                 }
                 "mouse" => {
-                    let parts: Vec<&str> = val.split(",").collect();
+                    let parts: Vec<String> = val.split(",").map(|s|s.to_string()).collect();
                     unsafe {
-                        if let Err(e) =  SetCursorPos(parts[0].parse().unwrap(), parts.last().unwrap().parse().unwrap()) {
-                            warn!("Failed to update pos {}",e )
-                        }
+                        std::thread::spawn(move || {
+                            if let Err(e) =  SetCursorPos(parts[0].parse().unwrap(), parts.last().unwrap().parse().unwrap()) {
+                                warn!("Failed to update pos {}",e )
+                            }
+                        });
                     }
                     let _ = self.handle.text("ok".to_string());
                 }
