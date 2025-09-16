@@ -295,7 +295,8 @@ async fn main() -> std::io::Result<()> {
         .map(char::from)
         .collect::<String>();
     let mut auths_lock = auths.lock().await;
-    auths_lock.insert("moi".to_string(), true);
+    auths_lock.insert(code.clone(), true);
+    info!("Admin authentication code: {code}");
     drop(auths_lock);
 
     let state = web::Data::new(AppState {
