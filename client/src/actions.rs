@@ -61,7 +61,12 @@ pub fn set_volume(volume_percentage: u8) {
         let enumerator: IMMDeviceEnumerator  = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).unwrap();
         let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole).unwrap();
         let endpoint_volume: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).unwrap();
-
+        let result = endpoint_volume.GetMute();
+        if let Ok(muted) = result {
+            if muted.as_bool() {
+                let _ = endpoint_volume.SetMute(false, std::ptr::null());
+            }
+        }
         let _ = endpoint_volume.SetMasterVolumeLevelScalar(volume_percentage as f32/100.0, std::ptr::null());
     }
 }
