@@ -1,9 +1,10 @@
-use std::ffi::c_str;
+use std::ffi::{c_str, c_ulong};
 
 use log::{error, info};
 use windows::core::{Interface, PCSTR};
 use windows::Win32::Media::Audio::Endpoints::{IAudioEndpointVolume, IAudioEndpointVolumeCallback};
 use windows::Win32::Media::Audio::{eConsole, eRender, IMMDevice, IMMDeviceActivator, IMMDeviceEnumerator, MMDeviceEnumerator};
+use windows::Win32::NetworkManagement::IpHelper::IP_UNIDIRECTIONAL_ADAPTER_ADDRESS;
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED};
 use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU};
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxA, MB_ICONWARNING, MESSAGEBOX_STYLE};
@@ -41,6 +42,12 @@ fn create_keypress_pair(key: VIRTUAL_KEY) -> (INPUT, INPUT) {
 pub fn lock() {
     unsafe {
         LockWorkStation();
+    }
+}
+
+pub fn get_ipv4() {
+    unsafe {
+        
     }
 }
 

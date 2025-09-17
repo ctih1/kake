@@ -116,7 +116,7 @@ async fn data_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Paylo
     
     let authorized = data.authorizations.lock().await;
     if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
-        info!("Recieved mouseWs event");
+        info!("Recieved dataWs event");
     } else {
         warn!("Auth required");
         let _ = session.text("auth_required=true").await;
@@ -200,7 +200,7 @@ async fn mouse_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payl
                     let event_type = params.get("type").unwrap();
                     for mut conn in conns.clone().into_iter() {
                         info!("Sending mouse data to connection {}", conn.0);
-                        if let Err(e) = conn.1.text(format!("action=do;param={};value={}",event_type, pos)).await {
+                        if let Err(e) = conn.1.text(format!("param={};value={}",event_type, pos)).await {
                             warn!("Failed to send {}", e);
                         }
                     }

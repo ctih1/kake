@@ -57,66 +57,65 @@ impl ezsockets::ClientExt for Client {
             }
         }
 
-        
-        if action == "do" {
-            match param.as_str() {
-                "caps" => { 
-                    info!("Toggling caps");
-                    std::thread::spawn(|| {
-                        actions::toggle_caps();
-                    });
-                    let _ = self.handle.text("ok".to_string());
-                },
-                "lock" => {
-                    std::thread::spawn(|| {
-                        actions::lock();
-                    });
-                    let _ = self.handle.text("ok");
-                }
-                "close" => {
-                    info!("Closing app");
-                    std::thread::spawn(|| {
-                        actions::alt_f4();
-                    });
-                    let _ = self.handle.text("ok".to_string());
-                }
-                "link" => {
-                    info!("Opening link {}", val);
-                    std::thread::spawn(move || {
-                        // 0x08000000 is to not create a visible window
-                        Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).creation_flags(0x08000000).spawn().unwrap();
-                    });
-                    let _ = self.handle.text("ok".to_string());
-                },
-                "volume" => {
-                    let percentage: u8 = val.parse().unwrap();
+        match param.as_str() {
+            "caps" => { 
+                info!("Toggling caps");
+                std::thread::spawn(|| {
+                    actions::toggle_caps();
+                });
+                let _ = self.handle.text("ok".to_string());
+            },
+            "lock" => {
+                std::thread::spawn(|| {
+                    actions::lock();
+                });
+                let _ = self.handle.text("ok");
+            }
+            "close" => {
+                info!("Closing app");
+                std::thread::spawn(|| {
+                    actions::alt_f4();
+                });
+                let _ = self.handle.text("ok".to_string());
+            }
+            "link" => {
+                info!("Opening link {}", val);
+                std::thread::spawn(move || {
+                    // 0x08000000 is to not create a visible window
+                    Command::new("cmd").args(["/C", format!("start {}", val).as_str()]).creation_flags(0x08000000).spawn().unwrap();
+                });
+                let _ = self.handle.text("ok".to_string());
+            },
+            "volume" => {
+                let percentage: u8 = val.parse().unwrap();
 
-                    actions::set_volume(percentage);
+                actions::set_volume(percentage);
 
-                    let _ = self.handle.text("ok".to_string());
-                }
-                "dialog" => {
-                    let vals: Vec<String> = val.split(".,.").map(|s|s.to_string()).collect();
-                    info!("Lens: {}", vals.len());
+                let _ = self.handle.text("ok".to_string());
+            }
+            "dialog" => {
+                let vals: Vec<String> = val.split(".,.").map(|s|s.to_string()).collect();
+                info!("Lens: {}", vals.len());
+                std::thread::spawn(move || {
+                    actions::dialog(vals[0].to_string(), vals.last().unwrap().to_string(), MB_ICONEXCLAMATION);
+                });
+                let _ = self.handle.text("ok".to_string());
+            }
+            "m" => {
+                let parts: Vec<String> = val.split(",").map(|s|s.to_string()).collect();
+                unsafe {
                     std::thread::spawn(move || {
-                        actions::dialog(vals[0].to_string(), vals.last().unwrap().to_string(), MB_ICONEXCLAMATION);
+                        if let Err(e) =  SetCursorPos(parts[0].parse().unwrap(), parts.last().unwrap().parse().unwrap()) {
+                            warn!("Failed to update pos {}",e )
+                        }
                     });
-                    let _ = self.handle.text("ok".to_string());
                 }
-                "mouse" => {
-                    let parts: Vec<String> = val.split(",").map(|s|s.to_string()).collect();
-                    unsafe {
-                        std::thread::spawn(move || {
-                            if let Err(e) =  SetCursorPos(parts[0].parse().unwrap(), parts.last().unwrap().parse().unwrap()) {
-                                warn!("Failed to update pos {}",e )
-                            }
-                        });
-                    }
-                    let _ = self.handle.text("ok".to_string());
-                }
-                "ldown" => {
-                    let parts: Vec<&str> = val.split(",").collect();
-                    unsafe {
+                let _ = self.handle.text("ok".to_string());
+            }
+            "ld" => {
+                let parts: Vec<String> = val.split(",").map(|s|s.to_string()).collect();
+                unsafe {
+                    std::thread::spawn(move || {
                         let mut click = INPUT {
                             r#type: INPUT_MOUSE,
                             Anonymous: std::mem::zeroed(),
@@ -131,11 +130,13 @@ impl ezsockets::ClientExt for Client {
                         };
                         let inputs = vec![click];
                         SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
-                    }
+                    });
                 }
-                "lup" => {
-                    let parts: Vec<&str> = val.split(",").collect();
-                    unsafe {
+            }
+            "lu" => {
+                let parts: Vec<String> = val.split(",").map(|s| s.to_string()).collect();
+                unsafe {
+                    std::thread::spawn(move || {
                         let mut click = INPUT {
                             r#type: INPUT_MOUSE,
                             Anonymous: std::mem::zeroed(),
@@ -151,17 +152,12 @@ impl ezsockets::ClientExt for Client {
                         
                         let inputs = vec![click];
                         SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
-                    }
+                    });
                 }
-                _ => { warn!("Invalid arg {}", param); }
             }
+            _ => { warn!("Invalid arg {}", param); }
         }
         
-        else if action == "get" {
-            let _ = self.handle.text("Getting data".to_string());
-        } else {
-            warn!("Invalid action {}", action);
-        }
         Ok(())
     }
 

@@ -158,7 +158,7 @@
             }
 
             let [x,y] = getCoords(event);
-            mouseWs.send(`pos=${x},${y};type=mouse`);
+            mouseWs.send(`pos=${x},${y};type=m`);
             if(indicator) {
                 screenIndicator.style["top"] = (event.pageY-6)+"px";
                 screenIndicator.style["left"] = (event.pageX-6)+"px";
@@ -194,7 +194,7 @@
             let [x,y] = getCoords(event);
             
             screenIndicator.style["background-color"] = "blue";
-            mouseWs.send(`pos=${x},${y};type=ldown`);
+            mouseWs.send(`pos=${x},${y};type=ld`);
         })
 
         addEventListener("mouseup", (event) => {
@@ -213,7 +213,7 @@
             }
             let [x,y] = getCoords(event);
             screenIndicator.style["background-color"] = "black";
-            mouseWs.send(`pos=${x},${y};type=lup`);
+            mouseWs.send(`pos=${x},${y};type=lu`);
         })
 
 
