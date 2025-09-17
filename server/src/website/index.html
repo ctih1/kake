@@ -218,27 +218,27 @@
 
 
         function sendCaps() {
-            fetch(`/send/do/caps/toggle`, {method: "POST"});
+            fetch(`/send/caps/toggle`, {method: "POST"});
         }
 
         function lockDevice() {
-            fetch(`/send/do/lock/_`, {method: "POST"});
+            fetch(`/send/lock/_`, {method: "POST"});
         }
 
         function altf4() {
-            fetch(`/send/do/close/_`, {method: "POST"});
+            fetch(`/send/close/_`, {method: "POST"});
         }
 
         function openPath() {
             let path = document.getElementById("path").value;
-            fetch(`/send/do/link/${encodeURIComponent(path)}`, {method: "POST"});
+            fetch(`/send/link/${encodeURIComponent(path)}`, {method: "POST"});
         }
 
         function sendDialog() {
             let title = document.getElementById("dialog-title").value;
             let desc = document.getElementById("dialog-description").value;
 
-            fetch(`/send/do/dialog/${encodeURIComponent(title)}.,.${encodeURIComponent(desc)}`, {method: "POST"});
+            fetch(`/send/dialog/${encodeURIComponent(title)}.,.${encodeURIComponent(desc)}`, {method: "POST"});
         }
 
         function createSession() {
@@ -261,7 +261,7 @@
 
         function setVolume() {
             let volume = document.getElementById("vol").value;
-            fetch(`/send/do/volume/${volume}`, {method: "POST"});
+            fetch(`/send/volume/${volume}`, {method: "POST"});
         }
     </script>
     <style>
