@@ -79,9 +79,9 @@ async fn remove_session(data: web::Data<AppState>, req: HttpRequest) -> impl Res
 }
 
 
-#[post("/send/{action}/{param}/{value}")] 
-async fn action(data: web::Data<AppState>, req: HttpRequest, path: web::Path<(String, String, String)>) -> impl Responder {
-    let (action, param, value) = path.into_inner();
+#[post("/send/{param}/{value}")] 
+async fn action(data: web::Data<AppState>, req: HttpRequest, path: web::Path<(String, String)>) -> impl Responder {
+    let (param, value) = path.into_inner();
     
     let mut authorized = data.authorizations.lock().await;
     if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
@@ -97,7 +97,7 @@ async fn action(data: web::Data<AppState>, req: HttpRequest, path: web::Path<(St
     let conns = data.connections.lock().await;
     for mut conn in conns.clone().into_iter() {
         info!("({}): Sending {}={} to connection {}", req.connection_info().peer_addr().unwrap_or("None"), param,value, conn.0);
-        if let Err(e) = conn.1.text(format!("action={};param={};value={}", action, param, value)).await {
+        if let Err(e) = conn.1.text(format!("param={};value={}", param, value)).await {
             warn!("Failed to send");
         }
     }
