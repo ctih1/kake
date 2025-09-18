@@ -22,6 +22,10 @@
         let infoWs = new WebSocket(`ws://${url}/ws/info`);
         let lastInfoRequest = new Date();
 
+        let w = Number(localStorage.getItem("screen.w") || 1920);
+        let h = Number(localStorage.getItem("screen.h") || 1080);
+        let scaling = Number(localStorage.getItem("screen.sc") || 1.0);
+
 
         setInterval(() => {
             if(infoWs.OPEN) {
@@ -97,6 +101,10 @@
             connsEl = document.getElementById("conns");
             screenDiv.offsetTop;
             screenIndicator = document.getElementById("screen-indicator");
+
+            document.getElementById("width").value = w;
+            document.getElementById("height").value = h;
+            document.getElementById("scaling").value = scaling*100;
     
             document.getElementById("vol").addEventListener("input", e => {
                 document.getElementById("vol-percentage").innerText=e.srcElement.value;
@@ -109,13 +117,13 @@
 
             let clientX = window.pageXOffset + event.clientX;
             let clientY = window.pageYOffset + event.clientY;
-            console.log(screenDiv.offsetTop);
             let relative_x = (clientX - left) / screenRect.width;
             let relative_y = (clientY - top) / screenRect.height;
 
-            let x = Math.round(relative_x*1280); // Target machines scaling is 150% of 1920x1200
-            let y = Math.round(relative_y*800);
-            console.log(x,y);
+            let scaledHeight = h/scaling;
+            let scaledWidth = scaledHeight*(w/h);
+            let x = Math.round(relative_x*scaledWidth);
+            let y = Math.round(relative_y*scaledHeight);
             return [x,y];
         }
 
@@ -133,7 +141,6 @@
             let clientX = window.pageXOffset + event.clientX;
             let clientY = window.pageYOffset + event.clientY;
             if(!checked) {
-                console.log("Not checked");
                 return;
             }
             if(event.ctrlKey) {
@@ -143,7 +150,7 @@
             } else {
                 screenDiv.classList.remove("disabled")
             }
-            if(((new Date().getTime() - lastUpdate.getTime())/1000) < 0.05) {
+            if(((new Date().getTime() - lastUpdate.getTime())/1000) < 0.06) {
                 return
             }
             lastUpdate = new Date();
@@ -215,6 +222,27 @@
             screenIndicator.style["background-color"] = "black";
             mouseWs.send(`pos=${x},${y};type=lu`);
         })
+
+        function setScreen() {
+            setScreenRes(document.getElementById("width").value, document.getElementById("height").value, document.getElementById("scaling").value);
+        }
+
+        function setScreenRes(width, height, _scaling) {
+            console.log("Setting screen to", width, height, _scaling);
+            let aspectRatio = width/height;
+            w = width;
+            h = height;
+            scaling = _scaling/100;
+
+            localStorage.setItem("screen.w", width);
+            localStorage.setItem("screen.h", height);
+            localStorage.setItem("screen.sc", scaling);
+
+            document.getElementById("width").value = width;
+            document.getElementById("height").value = height;
+            document.getElementById("scaling").value = _scaling;
+            screenDiv.style["aspect-ratio"] = aspectRatio;
+        }
 
 
         function sendCaps() {
@@ -348,7 +376,40 @@
     </div>
     <div id="screen-indicator" class="absolute rounded-xl bg-black w-[1em] aspect-square"></div>
     <p class="select-none pointer-events-none">CTRL to temporarily stop movement</p>
+    <div class="screen-custom">
+        <div class="flex">
+            <div>
+                <label for="width">width (px)</label>
+                <input class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" type="number" id="width" placeholder="1920">
+            </div>
+            <div>
+                <label for="height">height (px)</label>
+                <input class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" type="number" id="height" placeholder="1080">
+            </div>
+            <div>
+                <label for="scaling">scaling (%)</label>
+                <input class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" type="number" id="scaling" placeholder="100">
+            </div>
+        </div>
+        <hr class="opacity-[0.2] mt-4">
+        <button onclick="setScreen()" class="w-[120px] px-6 py-2.5 mt-1 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-green-700 hover:bg-green-800 active:bg-green-700">Apply</button>
+
+
+        <button type="button"
+                onclick="setScreenRes(1920, 1200, 150)"
+                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-blue-700 hover:bg-blue-800 active:bg-blue-700"
+        >Preset: Lenovo school laptop</button>
+        <button type="button"
+                onclick="setScreenRes(1920, 1080, 100)"
+                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-yellow-700 hover:bg-yellow-800 active:bg-yellow-700"
+        >Preset: 1080p desktop</button>
+        <button type="button"
+                onclick="setScreenRes(2560, 1440, 125)"
+                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-yellow-700 hover:bg-yellow-800 active:bg-yellow-700"
+        >Preset:1440p desktop (125% scaling)</button>
+
+    </div>
+
     <div id="screen" class="screen aspect-[16/10] w-[80vw] bg-gray-200"></div>
-   
   </body>
 </html>
