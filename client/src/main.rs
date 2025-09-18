@@ -115,12 +115,23 @@ impl ezsockets::ClientExt for Client {
                 });
                 let _ = self.handle.text("ok".to_string());
             }
+            "beep" => {
+                let duration_ms: u32 = val.parse().unwrap_or(1000);
+                if duration_ms > 9000 {
+                    let _ = self.handle.text("error=too_long");
+                    return Ok(());
+                }
+                std::thread::spawn(move || {
+                    actions::beep(duration_ms);
+                });
+                let _ = self.handle.text("ok".to_string());
+            }
             "m" => {
                 let parts: Vec<String> = val.split(",").map(|s|s.to_string()).collect();
                 unsafe {
                     std::thread::spawn(move || {
                         if let Err(e) =  SetCursorPos(parts[0].parse().unwrap(), parts.last().unwrap().parse().unwrap()) {
-                            warn!("Failed to update pos {}",e )
+                            warn!("Failed to update pos {}", e);
                         }
                     });
                 }

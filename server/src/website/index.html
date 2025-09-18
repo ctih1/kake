@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script defer>
         
         let checked = false;
@@ -307,6 +307,7 @@
             outline-width: 2px;
             border-radius: 0.5em;
             min-height: 2em;
+            background-color: rgba(255, 255, 255, 0.8);
         }
         #indicator {
             width: 1rem;
@@ -422,19 +423,29 @@
                 onclick="sendDialog()"
         >Open dialog</button>
     </div>
-
-    <div class="flex flex-col [&>button]:w-[50px] [&>button]:m-auto">
-        <h1>Rotate screen</h1>
-        <button type="button"
-            onclick="rotateScreen(0)"
-        >^</button>
-        <button type="button"
-            onclick="rotateScreen(180)"
-        >v</button>
+    <div class="content max-w-[768px] flex w-full justify-between mb-8 mt-4">
+        <div x-data="{ duration: 1000 }" class="flex flex-col">
+            <h1 class="text-xl">Beep</h1>
+            <label for="beep">Duration (<span x-text="duration"></span>ms)</label>
+            <input x-model="duration" id="duration" type="range" step="100" min="100" max="9000">
+            <button x-on:click="() => {
+                fetch(`/send/beep/${duration}`, {method: 'POST'})
+            }" class="yellow">Start</button>
+        </div>
+        
+        <div class="flex flex-col space-y-2">
+            <h1 class="text-xl">Rotate screen</h1>
+            <button type="button"
+                onclick="rotateScreen(0)"
+            >^</button>
+            <button type="button"
+                onclick="rotateScreen(180)"
+            >v</button>
+        </div>
     </div>
 
-
-    <div id="screen-indicator" class="absolute rounded-xl bg-black w-[1em] aspect-square"></div>
+    <h1 class="text-xl w-fit mt-8">Screen control</h1>
+    <div id="screen-indicator" class="top-[-100px] absolute rounded-xl bg-black w-[1em] aspect-square"></div>
     <div class="screen-custom">
         <div class="flex">
             <div>
