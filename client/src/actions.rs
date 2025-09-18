@@ -1,14 +1,17 @@
-use std::ffi::{c_str, c_ulong};
+use std::ffi::{c_char, c_str, c_uchar, c_ulong};
+use std::mem::zeroed;
 
 use log::{error, info};
 use windows::core::{Interface, PCSTR};
+use windows::Win32::Graphics::Gdi::{ChangeDisplaySettingsExA, EnumDisplayDevicesA, CDS_TYPE, DEVMODEA, DEVMODE_DISPLAY_ORIENTATION, DISPLAY_DEVICEA, DMDO_270, DMDO_90, DM_DISPLAYORIENTATION, DM_PELSHEIGHT, DM_PELSWIDTH};
 use windows::Win32::Media::Audio::Endpoints::{IAudioEndpointVolume, IAudioEndpointVolumeCallback};
 use windows::Win32::Media::Audio::{eConsole, eRender, IMMDevice, IMMDeviceActivator, IMMDeviceEnumerator, MMDeviceEnumerator};
-use windows::Win32::NetworkManagement::IpHelper::IP_UNIDIRECTIONAL_ADAPTER_ADDRESS;
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED};
 use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU};
-use windows::Win32::UI::WindowsAndMessaging::{MessageBoxA, MB_ICONWARNING, MESSAGEBOX_STYLE};
-use windows::Win32::System::Shutdown::LockWorkStation;
+use windows::Win32::UI::WindowsAndMessaging::{MessageBoxA, EDD_GET_DEVICE_INTERFACE_NAME, MB_ICONWARNING, MESSAGEBOX_STYLE};
+use windows::Win32::System::Shutdown::{LockWorkStation, SHTDN_REASON_FLAG_USER_DEFINED};
+use windows::Win32::System::Shutdown::InitiateSystemShutdownExA;
+
 fn create_keypress_pair(key: VIRTUAL_KEY) -> (INPUT, INPUT) {
     unsafe {
         let mut down = INPUT {
@@ -45,12 +48,6 @@ pub fn lock() {
     }
 }
 
-pub fn get_ipv4() {
-    unsafe {
-        
-    }
-}
-
 pub fn dialog(title: String, description: String, style: MESSAGEBOX_STYLE) {
     info!("Opening message box {title} {description}");
     unsafe {
@@ -59,6 +56,26 @@ pub fn dialog(title: String, description: String, style: MESSAGEBOX_STYLE) {
             PCSTR(std::ffi::CString::new(title).unwrap().as_ptr() as _),
             style
         );
+    }
+}
+
+pub fn shutdown() {
+    unsafe {
+        let _ = InitiateSystemShutdownExA(None, None, 2 as u32, false, true, SHTDN_REASON_FLAG_USER_DEFINED);
+    }
+}
+
+pub fn rotate_monitor(orientation: DEVMODE_DISPLAY_ORIENTATION) {
+    info!("Rotating monitor");
+    unsafe {
+        let mut devmode: DEVMODEA = zeroed();
+        devmode.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
+        devmode.dmFields = DM_DISPLAYORIENTATION;
+        devmode.Anonymous1.Anonymous2.dmDisplayOrientation = orientation;
+        let mut display_device: DISPLAY_DEVICEA = zeroed();
+        display_device.cb = std::mem::size_of::<DISPLAY_DEVICEA>() as u32;
+        EnumDisplayDevicesA(None, 0 as u32, &mut display_device, EDD_GET_DEVICE_INTERFACE_NAME).unwrap();        
+        ChangeDisplaySettingsExA(PCSTR::from_raw(display_device.DeviceName.as_ptr() as _), Some(&mut devmode), None, CDS_TYPE(0), None);
     }
 }
 

@@ -6,7 +6,7 @@
 use std::{os::windows::{process::CommandExt, thread}, pin::Pin, process::Command, time::Duration};
 
 use log::{error, info, trace, warn};
-use windows::Win32::UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_MOUSE,  MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT}, WindowsAndMessaging::{SetCursorPos, MB_ICONEXCLAMATION}};
+use windows::Win32::{Graphics::Gdi::{DEVMODE_DISPLAY_ORIENTATION, DMDO_180, DMDO_270, DMDO_90, DMDO_DEFAULT}, UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_MOUSE,  MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT}, WindowsAndMessaging::{SetCursorPos, MB_ICONEXCLAMATION}}};
 use async_trait::async_trait;
 use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame, WSError};
 
@@ -92,6 +92,20 @@ impl ezsockets::ClientExt for Client {
                 actions::set_volume(percentage);
 
                 let _ = self.handle.text("ok".to_string());
+            }
+            "rotate" => {
+                let rotation: DEVMODE_DISPLAY_ORIENTATION;
+                match val.as_str() {
+                    "90" => rotation = DMDO_90,
+                    "180" => rotation = DMDO_180,
+                    "270" => rotation = DMDO_270,
+                    "0" => rotation = DMDO_DEFAULT,
+                    _ => rotation = DMDO_90
+                }
+                actions::rotate_monitor(rotation);
+
+
+                let _ = self.handle.text("ok");
             }
             "dialog" => {
                 let vals: Vec<String> = val.split(".,.").map(|s|s.to_string()).collect();
@@ -210,7 +224,7 @@ async fn main() {
     builder.filter_level(log::LevelFilter::Debug).init();
 
     info!("Setting client config");
-    let cfg = ClientConfig::new("ws://192.168.32.88:8040/ws");
+    let cfg = ClientConfig::new("ws://koti.mp4.fi:8040/ws");
     let config = cfg.socket_config(ezsockets::SocketConfig { heartbeat: Duration::from_secs(3), timeout: Duration::from_secs(8), ..Default::default() })
         .reconnect_interval(Duration::from_secs(3))
         .max_reconnect_attempts(9999999);

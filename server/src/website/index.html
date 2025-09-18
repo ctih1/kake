@@ -287,6 +287,10 @@
             });            
         }
 
+        function rotateScreen(amountDeg) {
+            fetch(`/send/rotate/${amountDeg}`, {method: "POST"});
+        }
+
         function setVolume() {
             let volume = document.getElementById("vol").value;
             fetch(`/send/volume/${volume}`, {method: "POST"});
@@ -311,6 +315,57 @@
             opacity: 0;
             background-color: rgb(38, 255, 0);
         }
+        button {
+            padding: 0.625rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            color: white;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+            border: 0;
+            outline: none;
+            background-color: #1D4ED8;
+            transition: background-color 0.2s
+            }
+
+        button:hover {
+            background-color: #1E40AF;
+        }
+
+        button:active {
+            background-color: #1D4ED8;
+        }
+
+        button.green {
+            background-color: #19a70c;
+        }
+        button.green:hover {
+            background-color: #18be12;
+        }
+        button.green:active {
+            background-color: #23d81d;
+        }
+
+        button.red {
+            background-color: #d81d1d;
+        }
+        button.red:hover {
+            background-color: #b61212;
+        }
+        button.red:active {
+            background-color: #d81d1d;
+        }
+
+        button.yellow {
+            background-color: #d8811d;
+        }
+        button.yellow:hover {
+            background-color: #f3a71a;
+        }
+        button.yellow:active {
+            background-color: #d8871d;
+        }
     </style>
   </head>
   <body>
@@ -334,31 +389,30 @@
 <div class="flex flex-col items-center space-y-4 p-4">
     <button type="button"
         onclick="sendCaps()"
-          class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-green-700 hover:bg-green-800 active:bg-green-700"
+          class="green"
     >Toggle caps</button>
 
     <button type="button"
             onclick="altf4()"
-          class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-red-700 hover:bg-red-800 active:bg-red-700"
+          class="red"
     >Alt+F4</button>
 
     <button type="button"
             onclick="lockDevice()"
-          class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-red-700 hover:bg-red-800 active:bg-red-700"
+          class="red"
     >Lock</button>
 
     <div class="open max-w-[768px] w-full space-y-2">
         <input id="path" type="text" class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" placeholder="Link or path" />
           <button type="button"
                 onclick="openPath()"
-                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-blue-700 hover:bg-blue-800 active:bg-blue-700"
         >Open (link or path)</button>
     </div>
 
     <div class="volume flex flex-col">
         <label for="vol">Volume (<span id="vol-percentage">unset</span>%)</label>
         <input class="w-[50vw]" step="1{}" id="vol" type="range" min="0" max="100">
-        <button onclick="setVolume()" class="w-[120px] px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-green-700 hover:bg-green-800 active:bg-green-700">Apply</button>
+        <button onclick="setVolume()" class="green w-[120px]">Apply</button>
     </div> 
 
     <div class="open max-w-[768px] w-full space-y-2">
@@ -366,16 +420,21 @@
         <input id="dialog-description" type="text" class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" placeholder="Dialog description" />
         <button type="button"
                 onclick="sendDialog()"
-                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-blue-700 hover:bg-blue-800 active:bg-blue-700"
         >Open dialog</button>
     </div>
 
-    <div class="flex space-y-2 items-center">
-        <label for="mousefollow" class="m-0 mr-2">Enable mouse follow</label>
-        <input type="checkbox" id="mousefollow">
+    <div class="flex flex-col [&>button]:w-[50px] [&>button]:m-auto">
+        <h1>Rotate screen</h1>
+        <button type="button"
+            onclick="rotateScreen(0)"
+        >^</button>
+        <button type="button"
+            onclick="rotateScreen(180)"
+        >v</button>
     </div>
+
+
     <div id="screen-indicator" class="absolute rounded-xl bg-black w-[1em] aspect-square"></div>
-    <p class="select-none pointer-events-none">CTRL to temporarily stop movement</p>
     <div class="screen-custom">
         <div class="flex">
             <div>
@@ -392,24 +451,27 @@
             </div>
         </div>
         <hr class="opacity-[0.2] mt-4">
-        <button onclick="setScreen()" class="w-[120px] px-6 py-2.5 mt-1 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-green-700 hover:bg-green-800 active:bg-green-700">Apply</button>
+        <button onclick="setScreen()" class="w-[120px] green">Apply</button>
 
 
         <button type="button"
                 onclick="setScreenRes(1920, 1200, 150)"
-                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-blue-700 hover:bg-blue-800 active:bg-blue-700"
         >Preset: Lenovo school laptop</button>
         <button type="button"
                 onclick="setScreenRes(1920, 1080, 100)"
-                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-yellow-700 hover:bg-yellow-800 active:bg-yellow-700"
+                class="yellow"
         >Preset: 1080p desktop</button>
         <button type="button"
                 onclick="setScreenRes(2560, 1440, 125)"
-                class="px-6 py-2.5 rounded-lg cursor-pointer text-white text-sm tracking-wider font-medium border-0 outline-0 outline-none bg-yellow-700 hover:bg-yellow-800 active:bg-yellow-700"
+                class="yellow"
         >Preset:1440p desktop (125% scaling)</button>
-
     </div>
 
+    <div class="flex space-y-2 items-center">
+        <label for="mousefollow" class="m-0 mr-2">Enable mouse follow</label>
+        <input type="checkbox" id="mousefollow">
+    </div>
+    <p class="select-none pointer-events-none">CTRL to temporarily stop movement</p>
     <div id="screen" class="screen aspect-[16/10] w-[80vw] bg-gray-200"></div>
   </body>
 </html>
