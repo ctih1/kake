@@ -19,6 +19,15 @@ windows = { version = "0.58.0", features = [
 ] }
 ezsockets = "0.7.0"
 async-trait = "0.1.89"
+litcrypt = "0.4.0"
+
+[build-dependencies]
+winres = "0.1.12"
 
 [package.metadata.winres]
 windows_subsystem = "windows"
+
+[profile.release]
+lto = "thin"
+strip = false
+codegen-units = 16

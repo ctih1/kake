@@ -6,6 +6,13 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1", features = ["full", "macros"] }
 reqwest = "0.12.23"
+litcrypt = "0.4.0"
+winres = "0.1.12"
+
+[build-dependencies]
+winres = "0.1.12"
 
 [profile.release]
-lto = true
+lto = "thin"
+strip = false
+codegen-units = 16

@@ -42,7 +42,9 @@ async fn login(_data: web::Data<AppState>, _req: HttpRequest) -> impl Responder 
 
 async fn create_session(data: web::Data<AppState>, req: HttpRequest) -> impl Responder {
     let mut authorized = data.authorizations.lock().await;
-    if let Some(cookie) = req.cookie("auth") && *authorized.get(cookie.to_string().split("=").last().unwrap()).unwrap_or(&false) {
+    let cookie = req.cookie("auth");
+
+    if cookie.is_some() && *authorized.get(cookie.unwrap().to_string().split("=").last().unwrap()).unwrap_or(&false) {
         info!("Recieved session creation");
     } else {
         warn!("Auth required");
@@ -62,7 +64,8 @@ async fn create_session(data: web::Data<AppState>, req: HttpRequest) -> impl Res
 #[delete("/api/session")] 
 async fn remove_session(data: web::Data<AppState>, req: HttpRequest) -> impl Responder {
     let mut authorized = data.authorizations.lock().await;
-    if let Some(cookie) = req.cookie("auth") && *authorized.get(cookie.to_string().split("=").last().unwrap()).unwrap_or(&false) {
+    let cookie = req.cookie("auth");
+    if cookie.is_some() && *authorized.get(cookie.unwrap().to_string().split("=").last().unwrap()).unwrap_or(&false) {
         info!("Recieved session deletion");
     } else {
         warn!("Auth required");
@@ -84,7 +87,8 @@ async fn action(data: web::Data<AppState>, req: HttpRequest, path: web::Path<(St
     let (param, value) = path.into_inner();
     
     let mut authorized = data.authorizations.lock().await;
-    if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
+    let cookie = req.cookie("auth");
+    if cookie.is_some() && authorized.contains_key(cookie.unwrap().to_string().split("=").last().unwrap()) {
         info!("Recieved send POST");
     } else {
         warn!("Auth required");
@@ -115,7 +119,8 @@ async fn data_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Paylo
 
     
     let authorized = data.authorizations.lock().await;
-    if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
+    let cookie = req.cookie("auth");
+    if cookie.is_some() && authorized.contains_key(cookie.unwrap().to_string().split("=").last().unwrap()) {
         info!("Recieved dataWs event");
     } else {
         warn!("Auth required");
@@ -179,7 +184,8 @@ async fn mouse_ws(data: web::Data<AppState>, req: HttpRequest, stream: web::Payl
 
 
     let authorized = data.authorizations.lock().await;
-    if let Some(cookie) = req.cookie("auth") && authorized.contains_key(cookie.to_string().split("=").last().unwrap()) {
+    let cookie = req.cookie("auth");
+    if cookie.is_some() && authorized.contains_key(cookie.unwrap().to_string().split("=").last().unwrap()) {
         info!("Recieved mouseWs event");
     } else {
         warn!("Auth required");
@@ -318,7 +324,7 @@ async fn main() -> std::io::Result<()> {
             .route("/ws/mouse", web::get().to(mouse_ws))
             .route("/ws/info", web::get().to(data_ws))
     })
-    .bind(("0.0.0.0", 8040))?
+    .bind(("0.0.0.0", 8099))?
     .run()
     .await
 }

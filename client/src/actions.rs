@@ -1,14 +1,12 @@
-use std::ffi::{c_char, c_str, c_uchar, c_ulong};
 use std::mem::zeroed;
 
-use log::{error, info};
 use windows::core::{Interface, PCSTR};
 use windows::Win32::Graphics::Gdi::{ChangeDisplaySettingsExA, EnumDisplayDevicesA, CDS_TYPE, DEVMODEA, DEVMODE_DISPLAY_ORIENTATION, DISPLAY_DEVICEA, DMDO_270, DMDO_90, DM_DISPLAYORIENTATION, DM_PELSHEIGHT, DM_PELSWIDTH};
 use windows::Win32::Media::Audio::Endpoints::{IAudioEndpointVolume, IAudioEndpointVolumeCallback};
 use windows::Win32::Media::Audio::{eConsole, eRender, IMMDevice, IMMDeviceActivator, IMMDeviceEnumerator, MMDeviceEnumerator};
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED};
 use windows::Win32::System::Diagnostics::Debug::Beep;
-use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU};
+use windows::Win32::UI::Input::KeyboardAndMouse::{INPUT, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_KEYUP, LoadKeyboardLayoutA, SendInput, VIRTUAL_KEY, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU, VK_SPACE, VkKeyScanExA};
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxA, EDD_GET_DEVICE_INTERFACE_NAME, MB_ICONWARNING, MESSAGEBOX_STYLE};
 use windows::Win32::System::Shutdown::{LockWorkStation, SHTDN_REASON_FLAG_USER_DEFINED};
 use windows::Win32::System::Shutdown::InitiateSystemShutdownExA;
@@ -50,7 +48,6 @@ pub fn lock() {
 }
 
 pub fn dialog(title: String, description: String, style: MESSAGEBOX_STYLE) {
-    info!("Opening message box {title} {description}");
     unsafe {
         MessageBoxA(None,
             PCSTR(std::ffi::CString::new(description).unwrap().as_ptr() as _),
@@ -74,7 +71,6 @@ pub fn beep(duration_ms: u32) {
 }
 
 pub fn rotate_monitor(orientation: DEVMODE_DISPLAY_ORIENTATION) {
-    info!("Rotating monitor");
     unsafe {
         let mut devmode: DEVMODEA = zeroed();
         devmode.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
@@ -109,6 +105,16 @@ pub fn alt_f4() {
         let (alt_down, alt_up) = create_keypress_pair(VK_MENU);
 
         let inputs = &[alt_down, f4_down, f4_up, alt_up];
+        SendInput(inputs, std::mem::size_of::<INPUT>() as i32);
+    }
+}
+
+
+pub fn space_bar() {
+    unsafe {
+        let (space_down, space_up) = create_keypress_pair(VK_SPACE);
+
+        let inputs = &[space_down, space_up];
         SendInput(inputs, std::mem::size_of::<INPUT>() as i32);
     }
 }
