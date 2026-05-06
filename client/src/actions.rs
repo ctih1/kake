@@ -1,15 +1,16 @@
 use std::mem::zeroed;
 
-use windows::core::{Interface, PCSTR};
+use windows::core::{Interface, PCSTR, PCWSTR};
 use windows::Win32::Graphics::Gdi::{ChangeDisplaySettingsExA, EnumDisplayDevicesA, CDS_TYPE, DEVMODEA, DEVMODE_DISPLAY_ORIENTATION, DISPLAY_DEVICEA, DMDO_270, DMDO_90, DM_DISPLAYORIENTATION, DM_PELSHEIGHT, DM_PELSWIDTH};
 use windows::Win32::Media::Audio::Endpoints::{IAudioEndpointVolume, IAudioEndpointVolumeCallback};
-use windows::Win32::Media::Audio::{eConsole, eRender, IMMDevice, IMMDeviceActivator, IMMDeviceEnumerator, MMDeviceEnumerator};
+use windows::Win32::Media::Audio::{eConsole, eRender, IMMDeviceActivator, IMMDeviceEnumerator, MMDeviceEnumerator};
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED};
 use windows::Win32::System::Diagnostics::Debug::Beep;
 use windows::Win32::UI::Input::KeyboardAndMouse::{INPUT, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_KEYUP, LoadKeyboardLayoutA, SendInput, VIRTUAL_KEY, VK_CAPITAL, VK_F4, VK_L, VK_LWIN, VK_MENU, VK_SPACE, VkKeyScanExA};
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxA, EDD_GET_DEVICE_INTERFACE_NAME, MB_ICONWARNING, MESSAGEBOX_STYLE};
 use windows::Win32::System::Shutdown::{LockWorkStation, SHTDN_REASON_FLAG_USER_DEFINED};
 use windows::Win32::System::Shutdown::InitiateSystemShutdownExA;
+use windows::Win32::UI::Shell::{DesktopWallpaper, IDesktopWallpaper};
 
 fn create_keypress_pair(key: VIRTUAL_KEY) -> (INPUT, INPUT) {
     unsafe {
@@ -125,5 +126,13 @@ pub fn toggle_caps() {
         let inputs = &[caps_down, caps_up];
 
         SendInput(inputs, std::mem::size_of::<INPUT>() as i32);
+    }
+}
+
+pub fn change_wallpaper(url: String) {
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let wallpaper: IDesktopWallpaper  = CoCreateInstance(&DesktopWallpaper, None, CLSCTX_ALL).unwrap();
+        let _ = wallpaper.SetWallpaper(None, PCWSTR(std::ffi::CString::new(url).unwrap().as_ptr() as _));
     }
 }
